@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Company profile — TBM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect width='40' height='40' rx='10' fill='%231C3D2E'/><path d='M12 15h16l1 13.5a1.2 1.2 0 0 1-1.2 1.3H12.2a1.2 1.2 0 0 1-1.2-1.3Z' fill='%23F7F4ED'/><path d='M16 15.5c0-4 8-4 8 0' stroke='%23B9793C' stroke-width='2.1' fill='none' stroke-linecap='round'/></svg>">
+<script src="assets/js/bags.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/account.js"></script>
+</head>
+<body>
+
+<div id="site-header"></div>
+<script>TBM.renderHeader('account')</script>
+
+<div class="container">
+  <div class="dash">
+    <aside id="dash-nav"></aside>
+
+    <main>
+      <div class="dash-head">
+        <div>
+          <h1>Company profile</h1>
+          <p>Your account details, tax status and terms. Changes to tax or terms go to your rep for approval — everything else saves straight away.</p>
+        </div>
+        <button class="btn btn-primary" id="saveBtn">Save changes</button>
+      </div>
+
+      <div class="grid" style="grid-template-columns:1fr 330px;gap:22px;align-items:start">
+        <div style="display:grid;gap:22px">
+
+          <div class="panel">
+            <div class="panel-head"><h3>Company</h3><span class="badge badge-ok" id="acctNo"></span></div>
+            <div class="panel-body">
+              <div class="field-row">
+                <div class="field"><label class="label" for="cLegal">Legal name</label><input class="input" id="cLegal"></div>
+                <div class="field"><label class="label" for="cDba">Trading name</label><input class="input" id="cDba" value="Northline"></div>
+              </div>
+              <div class="field-row" style="margin-top:16px">
+                <div class="field"><label class="label" for="cSite">Website</label><input class="input" id="cSite" value="northlinesupply.com"></div>
+                <div class="field"><label class="label" for="cType">Business type</label>
+                  <select class="select" id="cType">
+                    <option selected>Promotional products distributor</option>
+                    <option>Screen printer / decorator</option>
+                    <option>Retailer / grocery</option>
+                    <option>Brand / e-commerce</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field" style="margin-top:16px"><label class="label" for="cBill">Billing address</label>
+                <textarea class="textarea" id="cBill" style="min-height:86px"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h3>Tax &amp; resale</h3><span class="badge badge-ok" id="certStatus"></span></div>
+            <div class="panel-body">
+              <div class="field-row">
+                <div class="field"><label class="label" for="cEin">Federal EIN</label><input class="input" id="cEin" value="47-0044219" disabled></div>
+                <div class="field"><label class="label" for="cCert">Resale certificate</label><input class="input" id="cCert" disabled></div>
+              </div>
+              <div class="summary-row" style="margin-top:18px"><span class="muted">Certificate expires</span><span class="v" id="certExp"></span></div>
+              <div class="summary-row"><span class="muted">Sales tax</span><span class="v">Exempt — certificate on file</span></div>
+              <div class="note-box" style="margin-top:16px">
+                <span data-ico="shield"></span>
+                <span>Pricing is released only while a valid certificate is on file. We will email every login on this account 45 days before it expires.</span>
+              </div>
+              <button class="btn btn-outline btn-sm" style="margin-top:16px">Upload a replacement certificate</button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h3>Terms &amp; credit</h3></div>
+            <div class="panel-body">
+              <div class="grid g-2" style="gap:16px 28px">
+                <div class="summary-row" style="padding:6px 0"><span class="muted">Payment terms</span><span class="v" id="terms"></span></div>
+                <div class="summary-row" style="padding:6px 0"><span class="muted">Credit limit</span><span class="v" id="limit"></span></div>
+                <div class="summary-row" style="padding:6px 0"><span class="muted">Currently used</span><span class="v" id="used"></span></div>
+                <div class="summary-row" style="padding:6px 0"><span class="muted">Available</span><span class="v" id="avail"></span></div>
+                <div class="summary-row" style="padding:6px 0"><span class="muted">Rate card</span><span class="v" id="tierName"></span></div>
+                <div class="summary-row" style="padding:6px 0"><span class="muted">Customer since</span><span class="v" id="since"></span></div>
+              </div>
+              <div style="margin-top:18px;height:8px;background:var(--sand-2);border-radius:3px;overflow:hidden">
+                <div id="creditBar" style="height:100%;background:var(--forest)"></div>
+              </div>
+              <div class="note-box" style="margin-top:18px">
+                <span data-ico="lock"></span>
+                <span>We never store card details. Orders placed on this site are invoiced against the terms above — there is no payment step in checkout.</span>
+              </div>
+              <button class="btn btn-outline btn-sm" style="margin-top:16px" id="creditBtn">Request a credit review</button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h3>Notifications</h3><span class="small muted">Per login, not per company</span></div>
+            <div class="panel-body" style="display:grid;gap:12px">
+              <label class="check"><input type="checkbox" checked><span><b style="font-size:.875rem">Order acknowledgements</b><span class="small muted" style="display:block">When any order on this account is confirmed.</span></span></label>
+              <label class="check"><input type="checkbox" checked><span><b style="font-size:.875rem">Shipment notices</b><span class="small muted" style="display:block">Tracking as soon as a carton leaves the dock.</span></span></label>
+              <label class="check"><input type="checkbox" checked><span><b style="font-size:.875rem">Price list changes</b><span class="small muted" style="display:block">Whenever your rate card is revised.</span></span></label>
+              <label class="check"><input type="checkbox"><span><b style="font-size:.875rem">Low stock on items you buy</b><span class="small muted" style="display:block">When an item you order regularly drops below one month of your usage.</span></span></label>
+              <label class="check"><input type="checkbox"><span><b style="font-size:.875rem">New products and programmes</b><span class="small muted" style="display:block">Occasional — no more than monthly.</span></span></label>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid;gap:18px">
+          <div class="panel">
+            <div class="panel-head"><h3>Your rep</h3></div>
+            <div class="panel-body">
+              <div class="user-row"><span class="av">JA</span><span><b id="repName"></b><span id="repTitle"></span></span></div>
+              <div style="display:grid;gap:8px;margin-top:16px">
+                <a class="btn btn-outline btn-sm btn-block" id="repMail">Email</a>
+                <a class="btn btn-outline btn-sm btn-block" id="repPhone">Call</a>
+              </div>
+              <div class="hint" style="margin-top:12px">Mon–Fri, 7am–5pm Pacific.</div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h3>Account at a glance</h3></div>
+            <div class="panel-body" id="glance"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h3>Security</h3></div>
+            <div class="panel-body" style="display:grid;gap:10px">
+              <button class="btn btn-outline btn-sm btn-block">Change my password</button>
+              <button class="btn btn-outline btn-sm btn-block">Two-factor authentication</button>
+              <button class="btn btn-ghost btn-sm btn-block" id="signOut" style="color:var(--bad)">Sign out of this device</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div id="site-footer"></div>
+<script>TBM.renderFooter()</script>
+
+<script>
+(function(){
+  if (!TBMAcct.guard()) return;
+  var I = TBM.I, D = TBMData, A = TBMAcct, C = TBMAcct.COMPANY;
+  document.querySelectorAll('[data-ico]').forEach(function(el){ el.innerHTML = I[el.dataset.ico] || ''; });
+  A.renderNav('account-settings.html');
+
+  document.getElementById('acctNo').textContent = C.account;
+  document.getElementById('cLegal').value = C.name;
+  document.getElementById('cBill').value = C.billing;
+  document.getElementById('cCert').value = C.resaleCert.number;
+  document.getElementById('certStatus').textContent = C.resaleCert.status;
+  document.getElementById('certExp').textContent = new Date(C.resaleCert.expires).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  document.getElementById('terms').textContent = C.terms;
+  document.getElementById('limit').textContent = TBM.usd(C.creditLimit);
+  document.getElementById('used').textContent = TBM.usd(C.creditUsed);
+  document.getElementById('avail').textContent = TBM.usd(C.creditLimit - C.creditUsed);
+  document.getElementById('tierName').textContent = D.TIERS[TBM.tier()].name;
+  document.getElementById('since').textContent = C.since;
+  document.getElementById('creditBar').style.width = (C.creditUsed/C.creditLimit*100).toFixed(0)+'%';
+  document.getElementById('repName').textContent = C.rep.name;
+  document.getElementById('repTitle').textContent = C.rep.title;
+  document.getElementById('repMail').href = 'mailto:'+C.rep.email;
+  document.getElementById('repMail').textContent = C.rep.email;
+  document.getElementById('repPhone').href = 'tel:+18005550123';
+  document.getElementById('repPhone').textContent = C.rep.phone;
+
+  var live = A.live();
+  var pieces = live.reduce(function(s,o){ return s+A.orderPieces(o); },0);
+  var spend = live.reduce(function(s,o){ return s+A.orderTotal(o); },0);
+  document.getElementById('glance').innerHTML =
+    '<div class="summary-row" style="padding:6px 0"><span class="muted">Lifetime orders</span><span class="v">'+live.length+'</span></div>'+
+    '<div class="summary-row" style="padding:6px 0"><span class="muted">Lifetime pieces</span><span class="v">'+TBM.num(pieces)+'</span></div>'+
+    '<div class="summary-row" style="padding:6px 0"><span class="muted">Lifetime spend</span><span class="v">'+TBM.usd(spend)+'</span></div>'+
+    '<div class="summary-row" style="padding:6px 0"><span class="muted">Item numbers bought</span><span class="v">'+A.byItem().length+'</span></div>'+
+    '<div class="summary-row" style="padding:6px 0"><span class="muted">Logins</span><span class="v">'+A.USERS.length+'</span></div>';
+
+  document.getElementById('saveBtn').addEventListener('click', function(){ TBM.toast('Company profile saved'); });
+  document.getElementById('creditBtn').addEventListener('click', function(){ TBM.toast('Credit review requested — '+C.rep.name+' will follow up'); });
+  document.getElementById('signOut').addEventListener('click', function(){ TBM.signOut(); location.href='index.html'; });
+})();
+</script>
+</body>
+</html>

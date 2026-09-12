@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Order — TBM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect width='40' height='40' rx='10' fill='%231C3D2E'/><path d='M12 15h16l1 13.5a1.2 1.2 0 0 1-1.2 1.3H12.2a1.2 1.2 0 0 1-1.2-1.3Z' fill='%23F7F4ED'/><path d='M16 15.5c0-4 8-4 8 0' stroke='%23B9793C' stroke-width='2.1' fill='none' stroke-linecap='round'/></svg>">
+<script src="assets/js/bags.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/account.js"></script>
+</head>
+<body>
+
+<div id="site-header"></div>
+<script>TBM.renderHeader('account')</script>
+
+<div class="container">
+  <div class="dash">
+    <aside id="dash-nav"></aside>
+    <main id="orderMain"></main>
+  </div>
+</div>
+
+<div id="site-footer"></div>
+<script>TBM.renderFooter()</script>
+
+<script>
+(function(){
+  if (!TBMAcct.guard()) return;
+  var I = TBM.I, D = TBMData, A = TBMAcct, B = TBMBags;
+  A.renderNav('account-orders.html');
+
+  var o = A.byId(TBM.qp('id')) || A.ORDERS[0];
+  document.title = o.id + ' — TBM';
+
+  var wh = D.WAREHOUSES.filter(function(x){return x.code===o.warehouse;})[0];
+  var addr = A.ADDRESSES.filter(function(a){ return a.label===o.shipTo; })[0] || A.ADDRESSES[0];
+  var st = A.statusOf(o.status);
+  var pieces = A.orderPieces(o), total = A.orderTotal(o);
+  var freight = Math.round(Math.max(48, pieces*0.06) * 100)/100;
+  var decor = o.lines.reduce(function(s,l){ return s + (l.imprint==='Blank (undecorated)' ? 0 : l.qty*0.42); },0);
+
+  var STEPS = [
+    ['Submitted','doc'], ['Confirmed','check'], ['In production','box'], ['Shipped','truck'], ['Delivered','check']
+  ];
+  var reached = o.status==='Cancelled' ? 1 : st.step + 1;
+
+  function d2(n){ var x = new Date(o.date); x.setDate(x.getDate()+n); return A.fmtDate(x); }
+
+  document.getElementById('orderMain').innerHTML =
+    '<nav class="crumbs" style="margin-bottom:16px"><a href="account.html">Dashboard</a>'+I.chev+
+      '<a href="account-orders.html">Order history</a>'+I.chev+'<span class="current">'+o.id+'</span></nav>'+
+
+    '<div class="dash-head">'+
+      '<div>'+
+        '<h1>'+o.id+'</h1>'+
+        '<p>Placed '+A.fmtDate(o.date)+' by '+o.user+' · your PO '+o.po+'</p>'+
+      '</div>'+
+      '<div class="row" style="gap:10px">'+A.statusPill(o.status)+
+        '<button class="btn btn-outline" id="printBtn">Print</button>'+
+        '<button class="btn btn-primary" id="reorderBtn">Reorder this</button>'+
+      '</div>'+
+    '</div>'+
+
+    /* timeline */
+    (o.status==='Cancelled'
+      ? '<div class="panel" style="margin-bottom:22px;border-color:var(--bad)"><div class="panel-body"><div class="row" style="gap:12px">'+
+          '<span style="color:var(--bad)">'+I.x+'</span><div><b style="font-size:.875rem">This order was cancelled</b>'+
+          '<div class="small muted">Cancelled '+d2(2)+' at the customer’s request. Nothing was invoiced.</div></div></div></div></div>'
+      : '<div class="panel" style="margin-bottom:22px"><div class="panel-body"><div class="tl">'+
+          STEPS.map(function(s,i){
+            var cls = i < reached-1 ? 'done' : (i === reached-1 ? 'now' : '');
+            return '<div class="tl-step '+cls+'"><span class="dot">'+I[s[1]]+'</span>'+
+              '<b>'+s[0]+'</b><span>'+(i < reached ? d2(i*3) : '—')+'</span></div>';
+          }).join('')+
+        '</div></div></div>') +
+
+    '<div class="grid" style="grid-template-columns:1fr 330px;gap:22px;align-items:start" id="orderCols">'+
+      '<div>'+
+        /* lines */
+        '<div class="panel">'+
+          '<div class="panel-head"><h3>'+o.lines.length+' line'+(o.lines.length===1?'':'s')+' · '+TBM.num(pieces)+' pieces</h3>'+
+            '<span class="small muted">Item numbers as they appear on your paperwork</span></div>'+
+          '<div class="panel-body-flush">'+
+            o.lines.map(function(l){
+              var unit = A.unitFor(l);
+              return '<div class="cart-line" style="padding:18px 24px">'+
+                '<a class="thumb" href="product.html?sku='+l.sku+'">'+B.figure(l.shape,l.color,{alt:l.name})+'</a>'+
+                '<div>'+
+                  '<a class="cart-line-title" href="product.html?sku='+l.sku+'">'+l.name+'</a>'+
+                  '<div class="cart-line-opts">'+
+                    '<span class="mono">'+l.sku+'</span>'+
+                    '<span>Colour <b>'+B.color(l.color).name+'</b></span>'+
+                    '<span>Size <b>'+l.size+'</b></span>'+
+                    '<span>Decoration <b>'+l.imprint+'</b></span>'+
+                  '</div>'+
+                  '<div class="small muted">'+TBM.num(l.qty)+' pieces at '+TBM.usd(unit)+' each</div>'+
+                '</div>'+
+                '<div class="cart-line-price"><b>'+TBM.usd(unit*l.qty)+'</b><span>'+TBM.num(l.qty)+' pcs</span></div>'+
+              '</div>';
+            }).join('')+
+          '</div>'+
+        '</div>'+
+
+        /* documents */
+        '<div class="panel" style="margin-top:22px">'+
+          '<div class="panel-head"><h3>Documents</h3></div>'+
+          '<div class="panel-body">'+
+            '<ul class="dl-list">'+
+              [['Order acknowledgement','PDF','Issued '+A.fmtDate(o.date)],
+               ['Packing slip','PDF', reached>=4 ? 'Issued '+d2(9) : 'Available once shipped'],
+               ['Commercial invoice','PDF', reached>=4 ? 'Issued '+d2(9)+' · '+A.COMPANY.terms : 'Issued on dispatch'],
+               ['Certificate of compliance','PDF','On file']].map(function(f){
+                return '<li><span class="fname"><span class="ftype">'+f[1]+'</span><span>'+f[0]+
+                  '<span class="small muted" style="display:block;font-weight:450">'+f[2]+'</span></span></span>'+
+                  '<a class="btn btn-outline btn-sm" href="#">Download</a></li>';
+              }).join('')+
+            '</ul>'+
+            '<div class="note-box" style="margin-top:16px">'+I.shield+
+              '<span>Every document above carries your item numbers (' +
+              o.lines.slice(0,3).map(function(l){return l.sku;}).join(', ') +
+              (o.lines.length>3?'…':'') + '). Mill references never appear on paperwork that reaches you or your customer.</span></div>'+
+          '</div>'+
+        '</div>'+
+      '</div>'+
+
+      /* side */
+      '<div style="display:grid;gap:18px">'+
+        '<div class="panel"><div class="panel-head"><h3>Summary</h3></div><div class="panel-body">'+
+          '<div class="summary-row"><span class="muted">Merchandise</span><span class="v">'+TBM.usd(total)+'</span></div>'+
+          '<div class="summary-row"><span class="muted">Decoration</span><span class="v">'+(decor?TBM.usd(decor):'—')+'</span></div>'+
+          '<div class="summary-row"><span class="muted">Freight</span><span class="v">'+TBM.usd(freight)+'</span></div>'+
+          '<div class="summary-row"><span class="muted">Tax</span><span class="v">Exempt</span></div>'+
+          '<div class="summary-row total"><span>Invoice total</span><b>'+TBM.usd(total+decor+freight)+'</b></div>'+
+          '<div class="row" style="margin-top:14px"><span class="your-tier">'+I.tag+D.TIERS[TBM.tier()].name+'</span></div>'+
+        '</div></div>'+
+
+        '<div class="panel"><div class="panel-head"><h3>Ship to</h3></div><div class="panel-body">'+
+          '<b style="font-size:.875rem">'+addr.label+'</b>'+
+          '<address style="font-style:normal;font-size:.8125rem;color:var(--muted);line-height:1.65;margin-top:6px">'+
+            addr.co+'<br>'+addr.street+'<br>'+addr.city+'</address>'+
+          '<hr style="margin:16px 0">'+
+          '<div class="summary-row" style="padding:4px 0"><span class="muted">Ships from</span><span class="v">'+(wh?wh.name:o.warehouse)+'</span></div>'+
+          '<div class="summary-row" style="padding:4px 0"><span class="muted">Service</span><span class="v">Ground</span></div>'+
+          '<div class="summary-row" style="padding:4px 0"><span class="muted">Tracking</span><span class="v">'+
+            (reached>=4 ? '<a href="#" style="color:var(--forest);text-decoration:underline">1Z'+o.id.replace(/\D/g,'')+'99</a>' : '—')+'</span></div>'+
+        '</div></div>'+
+
+        '<div class="panel"><div class="panel-head"><h3>Billing</h3></div><div class="panel-body">'+
+          '<div class="summary-row" style="padding:4px 0"><span class="muted">Terms</span><span class="v">'+A.COMPANY.terms+'</span></div>'+
+          '<div class="summary-row" style="padding:4px 0"><span class="muted">Your PO</span><span class="v">'+o.po+'</span></div>'+
+          '<div class="summary-row" style="padding:4px 0"><span class="muted">Placed by</span><span class="v">'+o.user+'</span></div>'+
+          '<address style="font-style:normal;font-size:.8125rem;color:var(--muted);line-height:1.65;margin-top:12px">'+
+            A.COMPANY.name+'<br>'+A.COMPANY.billing.replace('\n','<br>')+'</address>'+
+          '<div class="note-box" style="margin-top:14px">'+I.shield+'<span>No card was charged for this order. It was invoiced on account.</span></div>'+
+        '</div></div>'+
+      '</div>'+
+    '</div>';
+
+  document.getElementById('reorderBtn').addEventListener('click', function(){
+    o.lines.forEach(function(l){
+      var p = D.byId(l.id); if(!p) return;
+      var step = p.moq >= 500 ? 250 : (p.moq >= 250 ? 50 : 25);
+      TBM.addToCart({ id:p.id, sku:p.sku, name:p.name, shape:p.shape, color:l.color,
+        size:l.size, imprint:l.imprint, qty:l.qty, moq:p.moq, step:step });
+    });
+    TBM.toast(o.lines.length+' lines copied into your order');
+    setTimeout(function(){ location.href='cart.html'; }, 800);
+  });
+  document.getElementById('printBtn').addEventListener('click', function(){ window.print(); });
+})();
+</script>
+</body>
+</html>

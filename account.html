@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard — TBM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect width='40' height='40' rx='10' fill='%231C3D2E'/><path d='M12 15h16l1 13.5a1.2 1.2 0 0 1-1.2 1.3H12.2a1.2 1.2 0 0 1-1.2-1.3Z' fill='%23F7F4ED'/><path d='M16 15.5c0-4 8-4 8 0' stroke='%23B9793C' stroke-width='2.1' fill='none' stroke-linecap='round'/></svg>">
+<script src="assets/js/bags.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/account.js"></script>
+</head>
+<body>
+
+<div id="site-header"></div>
+<script>TBM.renderHeader('account')</script>
+
+<div class="container">
+  <div class="dash">
+    <aside id="dash-nav"></aside>
+
+    <main>
+      <div class="dash-head">
+        <div>
+          <h1 id="hello"></h1>
+          <p id="helloSub"></p>
+        </div>
+        <div class="row" style="gap:10px">
+          <button class="btn btn-outline" id="reorderLast">Reorder last order</button>
+          <a class="btn btn-primary" href="shop.html">Start a new order</a>
+        </div>
+      </div>
+
+      <!-- KPI row -->
+      <div class="stat-grid" id="kpis" style="grid-template-columns:1.25fr 1fr 1fr 1fr"></div>
+
+      <!-- Spend by month -->
+      <div class="chart-card" style="margin-top:22px">
+        <div class="panel-head">
+          <div>
+            <h3>Spend by month</h3>
+            <div class="small muted" style="margin-top:3px">All buyers at <span id="coName"></span>, last 12 months. Cancelled orders excluded.</div>
+          </div>
+          <div class="seg" id="metricSeg">
+            <button class="is-active" data-m="spend">Spend</button>
+            <button data-m="pieces">Pieces</button>
+            <button data-m="orders">Orders</button>
+          </div>
+        </div>
+        <div class="chart-body"><div id="monthChart" style="min-height:240px"></div></div>
+      </div>
+
+      <!-- Recent orders + top items -->
+      <div class="grid" style="grid-template-columns:minmax(0,1fr) 330px;gap:22px;margin-top:22px;align-items:start" id="twoCol">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Recent orders</h3>
+            <a class="link-arrow" href="account-orders.html">View all <span data-ico="arrow"></span></a>
+          </div>
+          <div class="table-wrap"><table class="table table-compact" id="recentOrders"></table></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Top items</h3>
+            <a class="link-arrow" href="account-reports.html">Reports <span data-ico="arrow"></span></a>
+          </div>
+          <div class="panel-body" id="topItems"></div>
+        </div>
+      </div>
+
+      <!-- Needs attention -->
+      <div class="panel" style="margin-top:22px">
+        <div class="panel-head"><h3>Open orders</h3><span class="badge" id="openCount"></span></div>
+        <div class="table-wrap"><table class="table table-compact" id="openOrders"></table></div>
+      </div>
+
+      <!-- Quick reorder -->
+      <div style="margin-top:32px">
+        <div class="row-between" style="margin-bottom:16px">
+          <div>
+            <h2 class="h3">Reorder what you buy most</h2>
+            <p class="small muted" style="margin:4px 0 0">Priced on your current rate card at your usual quantity.</p>
+          </div>
+          <a class="link-arrow" href="shop.html">Full catalog <span data-ico="arrow"></span></a>
+        </div>
+        <div class="prod-grid" id="quickGrid" style="grid-template-columns:repeat(4,1fr)"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div id="site-footer"></div>
+<script>TBM.renderFooter()</script>
+
+<script>
+(function(){
+  if (!TBMAcct.guard()) return;
+  var I = TBM.I, D = TBMData, A = TBMAcct, B = TBMBags;
+  document.querySelectorAll('[data-ico]').forEach(function(el){ el.innerHTML = I[el.dataset.ico] || ''; });
+  A.renderNav('account.html');
+
+  var acc = TBM.account();
+  var hr = new Date().getHours();
+  document.getElementById('hello').textContent =
+    (hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening') + ', ' + acc.name.split(' ')[0] + '.';
+  document.getElementById('helloSub').textContent =
+    A.COMPANY.name + ' · account ' + A.COMPANY.account + ' · customer since ' + A.COMPANY.since +
+    '. Everything below is shared with all ' + A.USERS.length + ' logins on this account.';
+  document.getElementById('coName').textContent = A.COMPANY.name;
+
+  var months = A.byMonth(null, 12);
+  var live = A.live();
+
+  /* ---------- KPIs ---------- */
+  var spend12 = months.reduce(function(s,m){ return s+m.spend; },0);
+  var pieces12 = months.reduce(function(s,m){ return s+m.pieces; },0);
+  var orders12 = months.reduce(function(s,m){ return s+m.orders; },0);
+  var prev = A.byMonth(null, 24).slice(0,12);           /* the 12 months before those */
+  var spendPrev = prev.reduce(function(s,m){ return s+m.spend; },0);
+  var delta = spendPrev ? ((spend12-spendPrev)/spendPrev*100) : 0;
+  var usd0 = function(n){ return '$' + Math.round(n).toLocaleString('en-US'); };
+  var avgUnit = pieces12 ? spend12/pieces12 : 0;
+  var skus = A.byItem().length;
+
+  document.getElementById('kpis').innerHTML =
+    '<div class="hero-fig">'+
+      '<div class="lab">Spend, last 12 months</div>'+
+      '<div class="val">'+usd0(spend12)+'</div>'+
+      '<div class="sub">'+(delta>=0
+        ? '<span class="up">&#9650; '+delta.toFixed(0)+'%</span> vs the 12 months before'
+        : '<span>&#9660; '+Math.abs(delta).toFixed(0)+'%</span> vs the 12 months before')+'</div>'+
+    '</div>'+
+    '<div class="stat"><div class="lab">Pieces purchased</div><div class="val">'+TBM.num(pieces12)+'</div>'+
+      '<div class="sub">across '+orders12+' orders</div>'+
+      '<div class="spark">'+A.sparkline(months.map(function(m){return m.pieces;}))+'</div></div>'+
+    '<div class="stat"><div class="lab">Average unit price</div><div class="val">'+TBM.usd(avgUnit)+'</div>'+
+      '<div class="sub">blended across '+skus+' item numbers</div>'+
+      '<div class="spark">'+A.sparkline(months.map(function(m){return m.pieces ? m.spend/m.pieces : 0;}))+'</div></div>'+
+    '<div class="stat"><div class="lab">Credit available</div><div class="val">'+TBM.usd(A.COMPANY.creditLimit - A.COMPANY.creditUsed)+'</div>'+
+      '<div class="sub">'+TBM.usd(A.COMPANY.creditUsed)+' of '+TBM.usd(A.COMPANY.creditLimit)+' used · '+A.COMPANY.terms+'</div>'+
+      '<div style="margin-top:12px;height:8px;background:var(--sand-2);border-radius:3px;overflow:hidden">'+
+        '<div style="height:100%;width:'+(A.COMPANY.creditUsed/A.COMPANY.creditLimit*100).toFixed(0)+'%;background:var(--forest)"></div></div></div>';
+
+  /* ---------- Month chart ---------- */
+  var metric = 'spend';
+  function paintChart(){
+    var data = months.map(function(m){
+      return {
+        label:m.label, full:m.full,
+        value: m[metric],
+        tip: metric==='spend'
+              ? TBM.usd(m.spend)+'<br><span class="k">'+TBM.num(m.pieces)+' pcs · '+m.orders+' orders</span>'
+              : metric==='pieces'
+              ? TBM.num(m.pieces)+' pieces<br><span class="k">'+TBM.usd(m.spend)+' · '+m.orders+' orders</span>'
+              : m.orders+' orders<br><span class="k">'+TBM.num(m.pieces)+' pcs · '+TBM.usd(m.spend)+'</span>'
+      };
+    });
+    A.columnChart(document.getElementById('monthChart'), data, {
+      prefix: metric==='spend' ? '$' : '',
+      alt: 'Monthly '+metric+' for the last 12 months'
+    });
+  }
+  document.getElementById('metricSeg').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-m]'); if(!b) return;
+    metric = b.dataset.m;
+    this.querySelectorAll('button').forEach(function(x){ x.classList.toggle('is-active', x===b); });
+    paintChart();
+  });
+  paintChart();
+
+  /* ---------- Recent orders ---------- */
+  function orderRows(list, compact){
+    return '<thead><tr><th>Order</th><th>Date</th><th>Placed by</th>'+
+      (compact ? '' : '<th class="num">Pieces</th>')+
+      '<th class="num">Total</th><th>Status</th></tr></thead><tbody>'+
+      list.map(function(o){
+        return '<tr><td class="nw"><a class="mono" style="color:var(--forest);font-weight:600" href="account-order.html?id='+o.id+'">'+o.id+'</a>'+
+          '<div class="small muted">'+o.po+'</div></td>'+
+          '<td class="nw">'+A.fmtDate(o.date)+'</td>'+
+          '<td class="nw">'+o.user+'</td>'+
+          (compact ? '' : '<td class="num">'+TBM.num(A.orderPieces(o))+'</td>')+
+          '<td class="num"><b>'+TBM.usd(A.orderTotal(o))+'</b></td>'+
+          '<td class="nw">'+A.statusPill(o.status)+'</td></tr>';
+      }).join('')+'</tbody>';
+  }
+  document.getElementById('recentOrders').innerHTML = orderRows(A.ORDERS.slice(0,6), true);
+
+  var open = A.ORDERS.filter(function(o){ return o.status==='Pending confirmation'||o.status==='In production'||o.status==='Shipped'; });
+  document.getElementById('openCount').textContent = open.length + ' in flight';
+  document.getElementById('openOrders').innerHTML = orderRows(open.slice(0,6));
+
+  /* ---------- Top items ---------- */
+  var items = A.byItem().slice(0,7);
+  document.getElementById('topItems').innerHTML = A.barList(items.map(function(x){
+    return { label:x.label, mono:x.key, value:x.pieces, display:TBM.num(x.pieces)+' pcs', sub:TBM.usd(x.spend) };
+  }), { narrow:true }) + '<div class="hint" style="margin-top:12px">Ranked by pieces over the last 12 months.</div>';
+
+  /* ---------- Quick reorder ---------- */
+  var top4 = A.byItem().slice(0,4);
+  document.getElementById('quickGrid').innerHTML = top4.map(function(x){
+    var p = D.byId(x.key); if (!p) return '';
+    var usual = Math.max(p.moq, Math.round(x.pieces / Math.max(1,x.orderCount) / 50) * 50);
+    var unit = D.priceAt(p, usual, TBM.tier());
+    return '<article class="prod-card">'+
+      '<a class="prod-media" href="product.html?sku='+p.sku+'">'+B.figure(p.shape,p.colors[0],{alt:p.name})+'</a>'+
+      '<div class="prod-body">'+
+        '<div class="prod-sku">'+p.sku+'</div>'+
+        '<a class="prod-title" href="product.html?sku='+p.sku+'">'+p.name+'</a>'+
+        '<div class="prod-meta"><span>Last bought '+x.orderCount+'× · '+TBM.num(x.pieces)+' pcs total</span></div>'+
+        '<div class="prod-foot" style="align-items:center">'+
+          '<div><span class="price-val"><b>'+TBM.usd(unit)+'</b><span>/ ea</span></span>'+
+          '<div class="tier-tag">at '+TBM.num(usual)+' pcs</div></div>'+
+          '<button class="btn btn-primary btn-sm" data-add="'+p.sku+'" data-qty="'+usual+'">Add</button>'+
+        '</div>'+
+      '</div></article>';
+  }).join('');
+
+  document.getElementById('quickGrid').addEventListener('click', function(e){
+    var b = e.target.closest('[data-add]'); if(!b) return;
+    var p = D.byId(b.dataset.add);
+    var step = p.moq >= 500 ? 250 : (p.moq >= 250 ? 50 : 25);
+    TBM.addToCart({ id:p.id, sku:p.sku, name:p.name, shape:p.shape, color:p.colors[0],
+      size:p.sizes[0], imprint:'Blank (undecorated)', qty:parseInt(b.dataset.qty,10), moq:p.moq, step:step });
+    TBM.toast(TBM.num(b.dataset.qty)+' × '+p.sku+' added to your order');
+  });
+
+  /* ---------- Reorder last ---------- */
+  document.getElementById('reorderLast').addEventListener('click', function(){
+    var last = A.ORDERS.filter(function(o){ return o.status!=='Cancelled'; })[0];
+    last.lines.forEach(function(l){
+      var p = D.byId(l.id); if(!p) return;
+      var step = p.moq >= 500 ? 250 : (p.moq >= 250 ? 50 : 25);
+      TBM.addToCart({ id:p.id, sku:p.sku, name:p.name, shape:p.shape, color:l.color,
+        size:l.size, imprint:l.imprint, qty:l.qty, moq:p.moq, step:step });
+    });
+    TBM.toast(last.lines.length+' lines from '+last.id+' copied into your order');
+  });
+})();
+</script>
+</body>
+</html>
