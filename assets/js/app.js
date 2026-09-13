@@ -183,10 +183,10 @@
     var nav = [
       { key: 'bags', label: 'Bags', mega: true },
       { key: 'wholesale', label: 'Wholesale', href: 'register.html' },
-      { key: 'custom', label: 'Customization', href: 'index.html#customization' },
-      { key: 'story', label: 'Our Story', href: 'index.html#story' },
-      { key: 'sustain', label: 'Sustainability', href: 'index.html#sustainability' },
-      { key: 'contact', label: 'Contact', href: 'index.html#contact' }
+      { key: 'custom', label: 'Customization', href: 'customization.html' },
+      { key: 'story', label: 'Our Story', href: 'story.html' },
+      { key: 'sustain', label: 'Sustainability', href: 'sustainability.html' },
+      { key: 'contact', label: 'Contact', href: 'contact.html' }
     ];
     var navHTML = nav.map(function (n) {
       if (n.mega) {
@@ -285,8 +285,8 @@
           '</div>' +
         '</div>' +
         col('Catalog', [['Cotton totes', 'shop.html?cat=cotton-totes'], ['Canvas totes', 'shop.html?cat=canvas-totes'], ['Organic totes', 'shop.html?cat=organic-totes'], ['Recycled totes', 'shop.html?cat=recycled-totes'], ['Jute &amp; burlap', 'shop.html?cat=jute-totes'], ['Drawstring', 'shop.html?cat=drawstring-backpacks'], ['Specialty bags', 'shop.html?cat=wine-bags']]) +
-        col('Wholesale', [['Open an account', 'register.html'], ['Log in', 'login.html'], ['Price tiers &amp; terms', 'register.html#terms'], ['Sample packs', 'register.html'], ['Warehouses', 'index.html#warehouses'], ['Drop shipping', '#'], ['Purchase orders', '#']]) +
-        col('Company', [['Our story', 'index.html#story'], ['Sustainability', 'index.html#sustainability'], ['Certifications', 'index.html#sustainability'], ['Customization', 'index.html#customization'], ['Careers', '#'], ['Blog', '#']]) +
+        col('Wholesale', [['Open an account', 'register.html'], ['Log in', 'login.html'], ['Price tiers &amp; terms', 'register.html#terms'], ['Sample packs', 'customization.html#samples'], ['Warehouses', 'contact.html#locations'], ['Drop shipping', 'contact.html'], ['Purchase orders', 'contact.html']]) +
+        col('Company', [['Our story', 'story.html'], ['Sustainability', 'sustainability.html'], ['Certifications', 'sustainability.html#certifications'], ['Customization', 'customization.html'], ['Contact', 'contact.html'], ['Careers', 'story.html#careers']]) +
         '<div><h5>Talk to a rep</h5><ul>' +
           '<li><a href="tel:+18005550123" style="display:flex;gap:10px;align-items:center">' + I.phone + '+1 (800) 555-0123</a></li>' +
           '<li><a href="mailto:sales@tbm.com" style="display:flex;gap:10px;align-items:center">' + I.mail + 'sales@tbm.com</a></li>' +

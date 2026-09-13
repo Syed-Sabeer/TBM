@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Order — TBM Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/css/style.css">
+<link rel="stylesheet" href="../../assets/css/admin.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect width='40' height='40' rx='10' fill='%230E2318'/><path d='M12 15h16l1 13.5a1.2 1.2 0 0 1-1.2 1.3H12.2a1.2 1.2 0 0 1-1.2-1.3Z' fill='%23F7F4ED'/><path d='M16 15.5c0-4 8-4 8 0' stroke='%23B9793C' stroke-width='2.1' fill='none' stroke-linecap='round'/></svg>">
+<script src="../../assets/js/bags.js"></script>
+<script src="../../assets/js/data.js"></script>
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/admin-data.js"></script>
+<script src="../../assets/js/admin.js"></script>
+</head>
+<body class="adm-body-root">
+<div id="adm-root"></div>
+
+<script>
+(function(){
+  var U = TBMAdminUI;
+  if (!U.guard()) return;
+  var I = TBM.I, D = TBMData, A = TBMAdmin, B = TBMBags;
+
+  var o = A.orderById(TBM.qp('id')) || A.ORDERS[0];
+  var c = A.company(o.companyId);
+  var mount = U.renderShell('orders', o.id, o.company + ' · ' + U.fmtDate(o.date));
+  document.title = o.id + ' — TBM Admin';
+
+  var pieces = A.orderPieces(o), merch = A.orderTotal(o);
+  var cost = o.lines.reduce(function(s,l){ var p=D.byId(l.id); return s + (p ? p.base*0.52*l.qty : 0); },0);
+  var margin = merch ? (merch-cost)/merch*100 : 0;
+  var freight = Math.round(Math.max(48, pieces*0.06)*100)/100;
+  var decor = o.lines.reduce(function(s,l){ return s + (l.imprint==='Blank (undecorated)'?0:l.qty*0.42); },0);
+  var wh = D.WAREHOUSES.filter(function(x){return x.code===o.warehouse;})[0];
+
+  function render(){
+    mount.innerHTML =
+      '<div class="adm-head">'+
+        '<div>'+
+          '<nav class="crumbs" style="margin-bottom:10px"><a href="../dashboard/">Dashboard</a>'+I.chev+
+            '<a href="../orders/">Orders</a>'+I.chev+'<span class="current">'+o.id+'</span></nav>'+
+          '<h2>'+o.id+'</h2>'+
+          '<p>Raised by '+o.user+' at <a href="../customer/?id='+c.id+'" style="color:var(--forest);font-weight:600">'+o.company+'</a> · customer PO '+o.po+' · '+D.TIERS[c.tier].name+'</p>'+
+        '</div>'+
+        '<div class="row" style="gap:10px;align-items:center">'+
+          U.statusPill(o.status)+
+          '<select class="select" id="statusSel" style="height:40px;width:auto;font-size:.8125rem">'+
+            A.STATUSES.map(function(s){ return '<option '+(o.status===s.key?'selected':'')+'>'+s.key+'</option>'; }).join('')+
+          '</select>'+
+          '<button class="btn btn-outline" id="printBtn">Packing slip</button>'+
+          '<button class="btn btn-primary" id="saveBtn">Save changes</button>'+
+        '</div>'+
+      '</div>'+
+
+      '<div class="mini-kpi" style="margin-bottom:20px">'+
+        '<div class="stat"><div class="lab">Pieces</div><div class="val">'+TBM.num(pieces)+'</div><div class="sub">'+o.lines.length+' lines</div></div>'+
+        '<div class="stat"><div class="lab">Merchandise</div><div class="val">'+TBM.usd(merch)+'</div><div class="sub">at this account’s rate card</div></div>'+
+        '<div class="stat"><div class="lab">Est. cost of goods</div><div class="val">'+TBM.usd(cost)+'</div><div class="sub">FOB, from the last cost import</div></div>'+
+        '<div class="stat"><div class="lab">Gross margin</div><div class="val" style="color:'+(margin<28?'var(--warn)':'var(--ok)')+'">'+margin.toFixed(1)+'%</div>'+
+          '<div class="sub">'+(margin<28?'below the 28% floor':'within policy')+'</div></div>'+
+      '</div>'+
+
+      '<div class="adm-split">'+
+        '<div>'+
+          '<div class="panel">'+
+            '<div class="panel-head"><h3>Lines</h3>'+
+              '<span class="small muted">Parent SKU is shown here only — the customer sees the item number</span></div>'+
+            '<div class="table-wrap"><table class="table adm-table" id="lineTbl"></table></div>'+
+          '</div>'+
+
+          '<div class="panel" style="margin-top:20px">'+
+            '<div class="panel-head"><h3>Allocation</h3><span class="badge">Ex '+(wh?wh.name:o.warehouse)+'</span></div>'+
+            '<div class="table-wrap"><table class="table table-compact adm-table" id="allocTbl"></table></div>'+
+            '<div class="panel-body" style="border-top:1px solid var(--line);background:var(--sand)">'+
+              '<div class="note-box" style="background:transparent;border:0;padding:0">'+I.truck+
+                '<span>Any line short at '+(wh?wh.name:o.warehouse)+' can be pulled from another warehouse without splitting the customer’s order or changing their paperwork.</span></div>'+
+            '</div>'+
+          '</div>'+
+
+          '<div class="panel" style="margin-top:20px">'+
+            '<div class="panel-head"><h3>Internal notes</h3><span class="small muted">Never visible to the customer</span></div>'+
+            '<div class="panel-body">'+
+              '<div id="notes" style="display:grid;gap:12px;margin-bottom:16px"></div>'+
+              '<textarea class="textarea" id="noteInput" placeholder="Add a note for the desk…"></textarea>'+
+              '<button class="btn btn-outline btn-sm" id="addNote" style="margin-top:10px">Add note</button>'+
+            '</div>'+
+          '</div>'+
+        '</div>'+
+
+        '<div style="display:grid;gap:18px">'+
+          '<div class="panel"><div class="panel-head"><h3>Invoice</h3></div><div class="panel-body">'+
+            '<div class="summary-row"><span class="muted">Merchandise</span><span class="v">'+TBM.usd(merch)+'</span></div>'+
+            '<div class="summary-row"><span class="muted">Decoration</span><span class="v">'+(decor?TBM.usd(decor):'—')+'</span></div>'+
+            '<div class="summary-row"><span class="muted">Freight</span><span class="v">'+TBM.usd(freight)+'</span></div>'+
+            '<div class="summary-row"><span class="muted">Tax</span><span class="v">Exempt</span></div>'+
+            '<div class="summary-row total"><span>Invoice total</span><b>'+TBM.usd(merch+decor+freight)+'</b></div>'+
+            '<div class="summary-row" style="border-top:1px solid var(--line);margin-top:10px;padding-top:12px">'+
+              '<span class="muted">Terms</span><span class="v">'+c.terms+'</span></div>'+
+            '<div class="summary-row" style="padding:4px 0"><span class="muted">Payment taken online</span><span class="v">None</span></div>'+
+            '<button class="btn btn-primary btn-block btn-sm" style="margin-top:14px" id="invBtn">Issue invoice</button>'+
+          '</div></div>'+
+
+          '<div class="panel"><div class="panel-head"><h3>Account</h3>'+
+            '<a class="link-arrow" href="../customer/?id='+c.id+'">Open <span>'+I.arrow+'</span></a></div><div class="panel-body">'+
+            '<div class="summary-row" style="padding:5px 0"><span class="muted">Account</span><span class="v">'+c.id+'</span></div>'+
+            '<div class="summary-row" style="padding:5px 0"><span class="muted">Rate card</span><span class="v">'+D.TIERS[c.tier].name+'</span></div>'+
+            '<div class="summary-row" style="padding:5px 0"><span class="muted">Overrides</span><span class="v">'+Object.keys(c.overrides).length+' items</span></div>'+
+            '<div class="summary-row" style="padding:5px 0"><span class="muted">Rep</span><span class="v">'+c.rep+'</span></div>'+
+            '<div class="summary-row" style="padding:5px 0"><span class="muted">Credit used</span><span class="v">'+TBM.usd(c.used)+' of '+TBM.usd(c.limit)+'</span></div>'+
+            '<div style="margin-top:10px;height:8px;background:var(--sand-2);border-radius:3px;overflow:hidden">'+
+              '<div style="height:100%;width:'+(c.limit?Math.min(100,c.used/c.limit*100):0).toFixed(0)+'%;background:'+(c.used/c.limit>0.85?'var(--bad)':'var(--forest)')+'"></div></div>'+
+            (c.used/c.limit>0.85 ? '<div class="note-box" style="margin-top:14px">'+I.shield+'<span>This account is close to its credit limit. Confirming this order will take it over.</span></div>' : '')+
+          '</div></div>'+
+
+          '<div class="panel"><div class="panel-head"><h3>Documents</h3></div><div class="panel-body">'+
+            '<ul class="dl-list">'+
+              [['Order acknowledgement','PDF'],['Pick list','PDF'],['Packing slip','PDF'],['Commercial invoice','PDF']].map(function(x){
+                return '<li style="padding:10px 12px"><span class="fname"><span class="ftype">'+x[1]+'</span><span style="font-size:.8125rem">'+x[0]+'</span></span>'+
+                  '<a class="btn btn-outline btn-sm" href="#">Open</a></li>';
+              }).join('')+
+            '</ul>'+
+            '<div class="note-box" style="margin-top:14px">'+I.lock+
+              '<span>Customer-facing documents print item numbers only. The pick list is the one document that carries the parent SKU, because the floor needs it.</span></div>'+
+          '</div></div>'+
+        '</div>'+
+      '</div>';
+
+    /* Lines */
+    document.getElementById('lineTbl').innerHTML =
+      '<thead><tr><th></th><th style="color:var(--bad)">Parent SKU</th><th style="color:var(--ok)">Item number</th>'+
+      '<th>Description</th><th>Colour</th><th>Size</th><th>Decoration</th>'+
+      '<th class="num">Qty</th><th class="num">Unit</th><th class="num">Extended</th><th class="num">Margin</th></tr></thead><tbody>'+
+      o.lines.map(function(l){
+        var p = D.byId(l.id);
+        var unit = p ? A.priceFor(c,p,l.qty) : 0;
+        var lc = p ? p.base*0.52 : 0;
+        var m = unit ? (unit-lc)/unit*100 : 0;
+        return '<tr>'+
+          '<td style="width:52px"><span style="width:40px;display:block;border:1px solid var(--line);border-radius:7px;overflow:hidden">'+
+            B.figure(l.shape,l.color,{alt:l.name})+'</span></td>'+
+          '<td class="sku-parent nw">'+l.parentSku+'</td>'+
+          '<td class="nw"><a class="lk mono" href="../product/?sku='+l.sku+'">'+l.sku+'</a></td>'+
+          '<td><span class="trunc" style="max-width:200px">'+l.name+'</span></td>'+
+          '<td class="nw"><span class="row" style="gap:7px"><span class="swatch" style="width:16px;height:16px;background:'+B.color(l.color).body+'"></span>'+B.color(l.color).name+'</span></td>'+
+          '<td class="nw muted">'+l.size+'</td>'+
+          '<td class="nw">'+(l.imprint==='Blank (undecorated)'?'<span class="muted">Blank</span>':'<span class="badge badge-warn">'+l.imprint+'</span>')+'</td>'+
+          '<td class="num">'+TBM.num(l.qty)+'</td>'+
+          '<td class="num">'+TBM.usd(unit)+'</td>'+
+          '<td class="num"><b>'+TBM.usd(unit*l.qty)+'</b></td>'+
+          '<td class="num" style="color:'+(m<28?'var(--warn)':'var(--ok)')+'">'+m.toFixed(0)+'%</td></tr>';
+      }).join('')+'</tbody>';
+
+    /* Allocation */
+    document.getElementById('allocTbl').innerHTML =
+      '<thead><tr><th>Item</th><th class="num">Needed</th>'+
+      D.WAREHOUSES.map(function(w){ return '<th class="num">'+w.code+'</th>'; }).join('')+
+      '<th>Allocation</th></tr></thead><tbody>'+
+      o.lines.map(function(l){
+        var p = D.byId(l.id); if (!p) return '';
+        var here = p.stock[o.warehouse]||0;
+        var ok = here >= l.qty;
+        return '<tr><td class="mono nw">'+l.sku+'</td><td class="num">'+TBM.num(l.qty)+'</td>'+
+          D.WAREHOUSES.map(function(w){
+            var q = p.stock[w.code]||0;
+            return '<td class="num '+(w.code===o.warehouse?'':'muted')+'">'+TBM.num(q)+'</td>';
+          }).join('')+
+          '<td>'+(ok
+            ? '<span class="badge badge-ok"><i class="dot"></i>Covered at '+o.warehouse+'</span>'
+            : '<span class="badge badge-warn"><i class="dot"></i>Short '+TBM.num(l.qty-here)+' — pull from another site</span>')+'</td></tr>';
+      }).join('')+'</tbody>';
+
+    /* Notes */
+    var notes = o._notes || (o._notes = [
+      { by:'System', at:U.fmtShort(o.date), text:'Order received from the storefront. Credit check passed.' },
+      { by:c.rep, at:U.fmtShort(new Date(o.date.getTime()+864e5)), text:'Customer asked for the whole run to ship together — do not split without calling them.' }
+    ]);
+    function paintNotes(){
+      document.getElementById('notes').innerHTML = notes.map(function(n){
+        return '<div style="background:var(--sand);border:1px solid var(--line);border-radius:10px;padding:12px 14px">'+
+          '<div class="small" style="color:var(--muted);margin-bottom:5px"><b style="color:var(--ink)">'+n.by+'</b> · '+n.at+'</div>'+
+          '<div style="font-size:.875rem">'+n.text+'</div></div>';
+      }).join('');
+    }
+    paintNotes();
+    document.getElementById('addNote').addEventListener('click', function(){
+      var v = document.getElementById('noteInput').value.trim();
+      if (!v) return;
+      notes.push({ by:U.admin().name, at:'Just now', text:v });
+      document.getElementById('noteInput').value='';
+      paintNotes(); TBM.toast('Note added');
+    });
+
+    document.getElementById('statusSel').addEventListener('change', function(){
+      o.status = this.value;
+      TBM.toast('Status set to ' + o.status + ' — the customer sees this immediately');
+      render();
+    });
+    document.getElementById('saveBtn').addEventListener('click', function(){ TBM.toast('Order saved'); });
+    document.getElementById('printBtn').addEventListener('click', function(){ window.print(); });
+    document.getElementById('invBtn').addEventListener('click', function(){
+      TBM.toast('Invoice issued on ' + c.terms + ' and emailed to the account');
+    });
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

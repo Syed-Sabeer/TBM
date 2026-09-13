@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Orders — TBM Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/css/style.css">
+<link rel="stylesheet" href="../../assets/css/admin.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect width='40' height='40' rx='10' fill='%230E2318'/><path d='M12 15h16l1 13.5a1.2 1.2 0 0 1-1.2 1.3H12.2a1.2 1.2 0 0 1-1.2-1.3Z' fill='%23F7F4ED'/><path d='M16 15.5c0-4 8-4 8 0' stroke='%23B9793C' stroke-width='2.1' fill='none' stroke-linecap='round'/></svg>">
+<script src="../../assets/js/bags.js"></script>
+<script src="../../assets/js/data.js"></script>
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/admin-data.js"></script>
+<script src="../../assets/js/admin.js"></script>
+</head>
+<body class="adm-body-root">
+<div id="adm-root"></div>
+
+<script>
+(function(){
+  var U = TBMAdminUI;
+  if (!U.guard()) return;
+  var I = TBM.I, D = TBMData, A = TBMAdmin;
+
+  var mount = U.renderShell('orders', 'Orders', 'Every order, every account');
+  var PER = 20, page = 1, sel = {};
+
+  var qs = new URLSearchParams(location.search);
+  var f = {
+    q: qs.get('q') || '',
+    status: qs.get('status') || '',
+    company: qs.get('company') || '',
+    wh: '',
+    range: '12'
+  };
+
+  mount.innerHTML =
+    '<div class="adm-head">'+
+      '<div><h2>Orders</h2><p>Placed by any contact at any account. Confirm, push to production or cancel from here — every change is written to the customer’s order history immediately.</p></div>'+
+      '<div class="row" style="gap:10px">'+
+        '<button class="btn btn-outline" id="exp">Export CSV</button>'+
+        '<button class="btn btn-primary" id="quick">Confirm all pending</button>'+
+      '</div>'+
+    '</div>'+
+    '<div class="mini-kpi" id="kpis" style="margin-bottom:18px"></div>'+
+    '<div class="adm-toolbar">'+
+      '<div class="field" style="flex:1;min-width:200px"><label class="label" for="fq">Search</label>'+
+        '<input class="input" id="fq" type="search" placeholder="Order, PO, account or item number"></div>'+
+      '<div class="field"><label class="label" for="fStatus">Status</label><select class="select" id="fStatus"></select></div>'+
+      '<div class="field"><label class="label" for="fCo">Account</label><select class="select" id="fCo"></select></div>'+
+      '<div class="field"><label class="label" for="fWh">Warehouse</label><select class="select" id="fWh"></select></div>'+
+      '<div class="field"><label class="label" for="fRange">Period</label>'+
+        '<select class="select" id="fRange">'+
+          '<option value="12">Last 12 months</option><option value="1">Last 30 days</option>'+
+          '<option value="3">Last 90 days</option><option value="0">All time</option></select></div>'+
+      '<div class="spacer"></div>'+
+      '<button class="btn btn-ghost btn-sm" id="clear">Clear</button>'+
+    '</div>'+
+    '<div id="bulkBar" class="hide" style="margin-bottom:14px"></div>'+
+    '<div class="panel">'+
+      '<div class="panel-head"><h3 id="count"></h3><span class="small muted">Values use each account’s own rate card</span></div>'+
+      '<div class="table-wrap"><table class="table adm-table" id="tbl"></table></div>'+
+    '</div>'+
+    '<div class="pagination" id="pager"></div>';
+
+  document.getElementById('fStatus').innerHTML = '<option value="">All statuses</option>'+
+    A.STATUSES.map(function(s){ return '<option '+(f.status===s.key?'selected':'')+'>'+s.key+'</option>'; }).join('');
+  document.getElementById('fCo').innerHTML = '<option value="">All accounts</option>'+
+    A.COMPANIES.map(function(c){ return '<option value="'+c.id+'" '+(f.company===c.id?'selected':'')+'>'+c.name+'</option>'; }).join('');
+  document.getElementById('fWh').innerHTML = '<option value="">All warehouses</option>'+
+    D.WAREHOUSES.map(function(w){ return '<option value="'+w.code+'">'+w.name+'</option>'; }).join('');
+  document.getElementById('fq').value = f.q;
+
+  function cutoff(m){
+    if (!m) return null;
+    var t = A.TODAY; return new Date(t.getFullYear(), t.getMonth()-m, t.getDate());
+  }
+
+  function filtered(){
+    var from = cutoff(parseInt(f.range,10));
+    var q = f.q.trim().toLowerCase();
+    return A.ORDERS.filter(function(o){
+      if (from && o.date < from) return false;
+      if (f.status && o.status !== f.status) return false;
+      if (f.company && o.companyId !== f.company) return false;
+      if (f.wh && o.warehouse !== f.wh) return false;
+      if (q){
+        var hay = (o.id+' '+o.po+' '+o.company+' '+o.user+' '+o.lines.map(function(l){return l.sku+' '+l.parentSku+' '+l.name;}).join(' ')).toLowerCase();
+        if (hay.indexOf(q)<0) return false;
+      }
+      return true;
+    });
+  }
+
+  function paint(){
+    var list = filtered();
+    var liveL = list.filter(function(o){ return o.status!=='Cancelled'; });
+    var pieces = liveL.reduce(function(s,o){ return s+A.orderPieces(o); },0);
+    var value  = liveL.reduce(function(s,o){ return s+A.orderTotal(o); },0);
+    var pend = list.filter(function(o){ return o.status==='Pending confirmation'; }).length;
+
+    document.getElementById('kpis').innerHTML =
+      '<div class="stat"><div class="lab">Orders</div><div class="val">'+list.length+'</div><div class="sub">'+pend+' awaiting confirmation</div></div>'+
+      '<div class="stat"><div class="lab">Pieces</div><div class="val">'+TBM.num(pieces)+'</div><div class="sub">in the selected period</div></div>'+
+      '<div class="stat"><div class="lab">Merchandise value</div><div class="val">'+TBM.usd(value)+'</div><div class="sub">before freight and decoration</div></div>'+
+      '<div class="stat"><div class="lab">Average order</div><div class="val">'+TBM.usd(liveL.length?value/liveL.length:0)+'</div><div class="sub">'+TBM.num(liveL.length?Math.round(pieces/liveL.length):0)+' pcs typical</div></div>';
+
+    var pages = Math.max(1, Math.ceil(list.length/PER));
+    if (page>pages) page=pages;
+    var slice = list.slice((page-1)*PER, page*PER);
+
+    document.getElementById('count').textContent =
+      list.length+' order'+(list.length===1?'':'s')+(list.length>PER ? ' · showing '+((page-1)*PER+1)+'–'+Math.min(page*PER,list.length) : '');
+
+    document.getElementById('tbl').innerHTML =
+      '<thead><tr><th class="sel-col"><input type="checkbox" id="selAll"></th>'+
+        '<th>Order</th><th>Account</th><th>Placed by</th><th>Date</th><th>Ex</th>'+
+        '<th class="num">Lines</th><th class="num">Pieces</th><th class="num">Value</th><th>Status</th><th></th></tr></thead><tbody>'+
+      slice.map(function(o){
+        var c = A.company(o.companyId);
+        return '<tr>'+
+          '<td class="sel-col"><input type="checkbox" data-sel="'+o.id+'" '+(sel[o.id]?'checked':'')+'></td>'+
+          '<td class="nw"><a class="lk mono" href="../order/?id='+o.id+'">'+o.id+'</a><div class="small muted">'+o.po+'</div></td>'+
+          '<td class="nw"><a class="lk" href="../customer/?id='+o.companyId+'">'+o.company+'</a>'+
+            '<div class="small muted">'+(c?D.TIERS[c.tier].name:'')+'</div></td>'+
+          '<td class="nw">'+o.user+'</td>'+
+          '<td class="nw">'+U.fmtShort(o.date)+'<div class="small muted">'+o.date.getFullYear()+'</div></td>'+
+          '<td class="nw">'+o.warehouse+'</td>'+
+          '<td class="num">'+o.lines.length+'</td>'+
+          '<td class="num">'+TBM.num(A.orderPieces(o))+'</td>'+
+          '<td class="num"><b>'+TBM.usd(A.orderTotal(o))+'</b></td>'+
+          '<td class="nw">'+U.statusPill(o.status)+'</td>'+
+          '<td class="num"><a class="btn btn-outline btn-sm" href="../order/?id='+o.id+'">Open</a></td></tr>';
+      }).join('')+'</tbody>';
+
+    var pg='';
+    if (pages>1){
+      for (var i=1;i<=pages;i++){
+        if (i===1||i===pages||Math.abs(i-page)<=1) pg += page===i?'<span class="is-current">'+i+'</span>':'<a href="#" data-p="'+i+'">'+i+'</a>';
+        else if (Math.abs(i-page)===2) pg += '<span class="dots">…</span>';
+      }
+    }
+    document.getElementById('pager').innerHTML = pg;
+
+    document.querySelectorAll('[data-sel]').forEach(function(cb){
+      cb.addEventListener('change', function(){
+        if (this.checked) sel[this.dataset.sel]=1; else delete sel[this.dataset.sel];
+        paintBulk();
+      });
+    });
+    document.getElementById('selAll').addEventListener('change', function(){
+      var on = this.checked;
+      slice.forEach(function(o){ if (on) sel[o.id]=1; else delete sel[o.id]; });
+      paint();
+    });
+    paintBulk();
+  }
+
+  function paintBulk(){
+    var ids = Object.keys(sel);
+    var bar = document.getElementById('bulkBar');
+    bar.classList.toggle('hide', !ids.length);
+    if (!ids.length) return;
+    bar.innerHTML =
+      '<div class="panel" style="background:var(--forest);border:0;color:#CFDCD2">'+
+        '<div class="panel-body" style="padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">'+
+          '<b style="color:#fff;font-size:.875rem">'+ids.length+' selected</b>'+
+          '<div class="row" style="gap:8px;margin-left:auto;flex-wrap:wrap">'+
+            '<button class="btn btn-light btn-sm" data-bulk="Confirmed">Confirm</button>'+
+            '<button class="btn btn-onwash btn-sm" data-bulk="In production">To production</button>'+
+            '<button class="btn btn-onwash btn-sm" data-bulk="Shipped">Mark shipped</button>'+
+            '<button class="btn btn-onwash btn-sm" data-bulk="Cancelled">Cancel</button>'+
+            '<button class="btn btn-onwash btn-sm" id="deselect">Clear</button>'+
+          '</div>'+
+        '</div>'+
+      '</div>';
+    bar.querySelectorAll('[data-bulk]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var to = b.dataset.bulk === 'Confirmed' ? 'In production' : b.dataset.bulk;
+        Object.keys(sel).forEach(function(id){
+          var o = A.orderById(id); if (o) o.status = to;
+        });
+        TBM.toast(Object.keys(sel).length + ' orders moved to ' + to);
+        sel = {}; paint();
+      });
+    });
+    document.getElementById('deselect').addEventListener('click', function(){ sel={}; paint(); });
+  }
+
+  ['fStatus','fCo','fWh','fRange'].forEach(function(id){
+    document.getElementById(id).addEventListener('change', function(){
+      f[{fStatus:'status',fCo:'company',fWh:'wh',fRange:'range'}[id]] = this.value;
+      page=1; paint();
+    });
+  });
+  var t;
+  document.getElementById('fq').addEventListener('input', function(e){
+    clearTimeout(t); t=setTimeout(function(){ f.q=e.target.value; page=1; paint(); },200);
+  });
+  document.getElementById('clear').addEventListener('click', function(){
+    f={q:'',status:'',company:'',wh:'',range:'12'};
+    document.getElementById('fq').value='';
+    ['fStatus','fCo','fWh'].forEach(function(id){ document.getElementById(id).value=''; });
+    document.getElementById('fRange').value='12';
+    page=1; paint();
+  });
+  document.getElementById('pager').addEventListener('click', function(e){
+    var a=e.target.closest('a[data-p]'); if(!a) return;
+    e.preventDefault(); page=parseInt(a.dataset.p,10); paint();
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+  document.getElementById('quick').addEventListener('click', function(){
+    var n=0;
+    A.ORDERS.forEach(function(o){ if (o.status==='Pending confirmation'){ o.status='In production'; n++; } });
+    TBM.toast(n+' orders confirmed and moved to production');
+    paint();
+  });
+  document.getElementById('exp').addEventListener('click', function(){
+    var out=[['Order','Date','PO','Account','Account ID','Tier','Placed by','Warehouse','Parent SKU','Item number','Description','Colour','Size','Decoration','Qty','Unit','Extended','Status']];
+    filtered().forEach(function(o){
+      var c=A.company(o.companyId);
+      o.lines.forEach(function(l){
+        var p=D.byId(l.id), unit=p&&c?A.priceFor(c,p,l.qty):0;
+        out.push([o.id,U.fmtDate(o.date),o.po,o.company,o.companyId,c?c.tier:'',o.user,o.warehouse,
+          l.parentSku,l.sku,l.name,TBMBags.color(l.color).name,l.size,l.imprint,l.qty,unit.toFixed(2),(unit*l.qty).toFixed(2),o.status]);
+      });
+    });
+    U.download('tbm-orders.csv', U.csv(out));
+    TBM.toast('Orders exported');
+  });
+
+  paint();
+})();
+</script>
+</body>
+</html>

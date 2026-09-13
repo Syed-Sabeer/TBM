@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Reports — TBM Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/css/style.css">
+<link rel="stylesheet" href="../../assets/css/admin.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect width='40' height='40' rx='10' fill='%230E2318'/><path d='M12 15h16l1 13.5a1.2 1.2 0 0 1-1.2 1.3H12.2a1.2 1.2 0 0 1-1.2-1.3Z' fill='%23F7F4ED'/><path d='M16 15.5c0-4 8-4 8 0' stroke='%23B9793C' stroke-width='2.1' fill='none' stroke-linecap='round'/></svg>">
+<script src="../../assets/js/bags.js"></script>
+<script src="../../assets/js/data.js"></script>
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/admin-data.js"></script>
+<script src="../../assets/js/admin.js"></script>
+</head>
+<body class="adm-body-root">
+<div id="adm-root"></div>
+
+<script>
+(function(){
+  var U = TBMAdminUI;
+  if (!U.guard()) return;
+  var I = TBM.I, D = TBMData, A = TBMAdmin, B = TBMBags;
+
+  var mount = U.renderShell('reports', 'Reports', 'Sales item wise, colour wise, month wise');
+  var dim = 'month';
+  var current = { head:[], rows:[] };
+
+  mount.innerHTML =
+    '<div class="adm-head">'+
+      '<div><h2>Reports</h2><p>The whole book of business, cut any way you need it. Every figure uses the price the account actually paid, so revenue and margin are real rather than list.</p></div>'+
+      '<button class="btn btn-outline" id="exp">Export current view</button>'+
+    '</div>'+
+    '<div class="adm-toolbar">'+
+      '<div class="field"><label class="label" for="fRange">Period</label>'+
+        '<select class="select" id="fRange"><option value="12">Last 12 months</option>'+
+        '<option value="3">Last 90 days</option><option value="6">Last 6 months</option><option value="24">Last 24 months</option></select></div>'+
+      '<div class="field"><label class="label" for="fCo">Account</label><select class="select" id="fCo"></select></div>'+
+      '<div class="field"><label class="label" for="fRep">Rep</label><select class="select" id="fRep"></select></div>'+
+      '<div class="field"><label class="label" for="fWh">Warehouse</label><select class="select" id="fWh"></select></div>'+
+      '<div class="field"><label class="label" for="fCat">Category</label><select class="select" id="fCat"></select></div>'+
+      '<div class="field"><label class="label" for="fMetric">Rank by</label>'+
+        '<select class="select" id="fMetric"><option value="spend">Revenue</option><option value="pieces">Pieces</option></select></div>'+
+    '</div>'+
+    '<div class="mini-kpi" id="kpis" style="margin-bottom:18px"></div>'+
+    '<div class="seg" id="dimSeg" style="margin-bottom:18px">'+
+      [['month','By month'],['item','By item'],['color','By colour'],['cat','By category'],
+       ['company','By account'],['rep','By rep'],['wh','By warehouse'],['decor','By decoration']]
+        .map(function(x){ return '<button class="'+(dim===x[0]?'is-active':'')+'" data-d="'+x[0]+'">'+x[1]+'</button>'; }).join('')+
+    '</div>'+
+    '<div class="chart-card">'+
+      '<div class="panel-head"><div><h3 id="vt"></h3><div class="small muted" id="vs" style="margin-top:3px"></div></div></div>'+
+      '<div class="chart-body"><div id="viz"></div></div>'+
+    '</div>'+
+    '<div class="panel" style="margin-top:20px">'+
+      '<div class="panel-head"><h3 id="tt"></h3><span class="small muted">Table view — every value in the chart above</span></div>'+
+      '<div class="table-wrap"><table class="table adm-table" id="tbl"></table></div>'+
+    '</div>';
+
+  document.getElementById('fCo').innerHTML = '<option value="">All accounts</option>'+
+    A.COMPANIES.map(function(c){ return '<option value="'+c.id+'">'+c.name+'</option>'; }).join('');
+  var reps=[]; A.COMPANIES.forEach(function(c){ if (reps.indexOf(c.rep)<0) reps.push(c.rep); });
+  document.getElementById('fRep').innerHTML = '<option value="">All reps</option>'+
+    reps.map(function(r){ return '<option>'+r+'</option>'; }).join('');
+  document.getElementById('fWh').innerHTML = '<option value="">All warehouses</option>'+
+    D.WAREHOUSES.map(function(w){ return '<option value="'+w.code+'">'+w.name+'</option>'; }).join('');
+  document.getElementById('fCat').innerHTML = '<option value="">All categories</option>'+
+    D.CATEGORIES.map(function(c){ return '<option value="'+c.slug+'">'+c.name+'</option>'; }).join('');
+  if (TBM.qp('company')) document.getElementById('fCo').value = TBM.qp('company');
+
+  var TITLES = {
+    month:  ['Revenue by month','Every order bucketed by the month it was placed.'],
+    item:   ['By item number','Ranked across the whole catalog. The mill reference sits behind each one.'],
+    color:  ['By colour','Which body colours the business actually runs on.'],
+    cat:    ['By category','Where volume sits across the catalog families.'],
+    company:['By account','Who is buying, at their own rates.'],
+    rep:    ['By rep','Book of business per account manager.'],
+    wh:     ['By warehouse','Which stocking location the goods shipped from.'],
+    decor:  ['By decoration','Blank versus decorated across the period.']
+  };
+
+  function cutoff(m){ var t=A.TODAY; return new Date(t.getFullYear(), t.getMonth()-m, t.getDate()); }
+
+  function scope(){
+    var co = document.getElementById('fCo').value;
+    var rep = document.getElementById('fRep').value;
+    var wh = document.getElementById('fWh').value;
+    var cat = document.getElementById('fCat').value;
+    var from = cutoff(parseInt(document.getElementById('fRange').value,10));
+    return A.ORDERS.filter(function(o){
+      if (o.status==='Cancelled') return false;
+      if (o.date < from) return false;
+      if (co && o.companyId!==co) return false;
+      if (wh && o.warehouse!==wh) return false;
+      if (rep){ var c=A.company(o.companyId); if (!c || c.rep!==rep) return false; }
+      return true;
+    }).map(function(o){
+      if (!cat) return o;
+      var lines = o.lines.filter(function(l){ return l.cat===cat; });
+      return lines.length ? Object.assign({}, o, { lines:lines }) : null;
+    }).filter(Boolean);
+  }
+
+  function paint(){
+    var list = scope();
+    var metric = document.getElementById('fMetric').value;
+    var pieces = list.reduce(function(s,o){ return s+A.orderPieces(o); },0);
+    var rev = list.reduce(function(s,o){ return s+A.orderTotal(o); },0);
+    var cost = list.reduce(function(s,o){
+      return s + o.lines.reduce(function(t,l){ var p=D.byId(l.id); return t + (p?p.base*0.52*l.qty:0); },0);
+    },0);
+    var margin = rev ? (rev-cost)/rev*100 : 0;
+
+    document.getElementById('kpis').innerHTML =
+      '<div class="stat"><div class="lab">Orders</div><div class="val">'+list.length+'</div>'+
+        '<div class="sub">'+A.byCompany(list).length+' accounts</div></div>'+
+      '<div class="stat"><div class="lab">Pieces</div><div class="val">'+TBM.num(pieces)+'</div>'+
+        '<div class="sub">'+A.byItem(list).length+' item numbers</div></div>'+
+      '<div class="stat"><div class="lab">Revenue</div><div class="val">'+TBM.usd(rev)+'</div>'+
+        '<div class="sub">at each account’s own rates</div></div>'+
+      '<div class="stat"><div class="lab">Gross margin</div><div class="val" style="color:'+(margin<28?'var(--warn)':'var(--ok)')+'">'+margin.toFixed(1)+'%</div>'+
+        '<div class="sub">'+TBM.usd(rev-cost)+' gross profit</div></div>';
+
+    document.getElementById('vt').textContent = TITLES[dim][0];
+    document.getElementById('vs').textContent = TITLES[dim][1];
+    document.getElementById('tt').textContent = TITLES[dim][0];
+
+    var viz = document.getElementById('viz');
+
+    if (dim==='month'){
+      var months = A.byMonth(list, parseInt(document.getElementById('fRange').value,10));
+      U.columnChart(viz, months.map(function(m){
+        return { label:m.label, full:m.full, value:m[metric],
+          tip: TBM.usd(m.spend)+'<br><span class="k">'+TBM.num(m.pieces)+' pcs · '+m.orders+' orders</span>' };
+      }), { prefix: metric==='spend'?'$':'', alt:'Revenue by month' });
+
+      current.head = ['Month','Orders','Pieces','Revenue','Avg unit'];
+      current.rows = months.map(function(m){ return [m.full,m.orders,m.pieces,m.spend.toFixed(2),(m.pieces?m.spend/m.pieces:0).toFixed(3)]; });
+      document.getElementById('tbl').innerHTML =
+        '<thead><tr><th>Month</th><th class="num">Orders</th><th class="num">Pieces</th><th class="num">Revenue</th><th class="num">Avg unit</th></tr></thead><tbody>'+
+        months.map(function(m){
+          return '<tr><td>'+m.full+'</td><td class="num">'+m.orders+'</td><td class="num">'+TBM.num(m.pieces)+'</td>'+
+            '<td class="num"><b>'+TBM.usd(m.spend)+'</b></td><td class="num">'+(m.pieces?TBM.usd(m.spend/m.pieces):'—')+'</td></tr>';
+        }).join('')+'</tbody>';
+      return;
+    }
+
+    var rows = dim==='item'    ? A.byItem(list)
+             : dim==='color'   ? A.byColor(list)
+             : dim==='cat'     ? A.byCat(list)
+             : dim==='company' ? A.byCompany(list)
+             : dim==='rep'     ? A.byRep(list)
+             : dim==='decor'   ? A.byDecor(list)
+             :                   A.byWarehouse(list);
+    rows = rows.slice().sort(function(a,b){ return b[metric]-a[metric]; });
+
+    viz.classList.add('viz');
+    viz.innerHTML = U.barList(rows.slice(0,12).map(function(x){
+      return {
+        label:x.label,
+        mono: dim==='item' ? x.key + ' · ' + ((D.byId(x.key)||{}).parentSku||'') : '',
+        swatch: dim==='color' ? B.color(x.key).body : '',
+        value:x[metric],
+        display: metric==='spend' ? TBM.usd(x.spend) : TBM.num(x.pieces)+' pcs',
+        sub: metric==='spend' ? TBM.num(x.pieces)+' pcs' : TBM.usd(x.spend)
+      };
+    }));
+
+    var totalP = rows.reduce(function(s,x){ return s+x.pieces; },0) || 1;
+    current.head = ['Name','Key','Orders','Pieces','Revenue','Avg unit','Share of pieces'];
+    current.rows = rows.map(function(x){
+      return [x.label,x.key,x.orderCount,x.pieces,x.spend.toFixed(2),(x.spend/x.pieces).toFixed(3),(x.pieces/totalP*100).toFixed(1)+'%'];
+    });
+
+    var head = dim==='item'?'Item':dim==='color'?'Colour':dim==='company'?'Account':dim==='rep'?'Rep':dim==='wh'?'Warehouse':dim==='decor'?'Decoration':'Category';
+    document.getElementById('tbl').innerHTML =
+      '<thead><tr><th>'+head+'</th>'+(dim==='item'?'<th style="color:var(--bad)">Mill ref</th>':'')+
+      '<th class="num">Orders</th><th class="num">Pieces</th><th class="num">Revenue</th>'+
+      '<th class="num">Avg unit</th><th class="num">Share</th></tr></thead><tbody>'+
+      rows.map(function(x){
+        var p = dim==='item' ? D.byId(x.key) : null;
+        return '<tr><td class="nw">'+
+          (dim==='color' ? '<span class="row" style="gap:9px"><span class="swatch" style="width:18px;height:18px;background:'+B.color(x.key).body+'"></span>'+x.label+'</span>'
+           : dim==='item' ? '<a class="lk mono" href="../product/?sku='+x.key+'">'+x.key+'</a> <span class="trunc" style="display:inline;max-width:190px">'+x.label+'</span>'
+           : dim==='company' ? '<a class="lk" href="../customer/?id='+x.key+'">'+x.label+'</a>'
+           : x.label)+'</td>'+
+          (dim==='item' ? '<td class="sku-parent nw">'+(p?p.parentSku:'—')+'</td>' : '')+
+          '<td class="num">'+x.orderCount+'</td>'+
+          '<td class="num">'+TBM.num(x.pieces)+'</td>'+
+          '<td class="num"><b>'+TBM.usd(x.spend)+'</b></td>'+
+          '<td class="num">'+TBM.usd(x.spend/x.pieces)+'</td>'+
+          '<td class="num">'+(x.pieces/totalP*100).toFixed(1)+'%</td></tr>';
+      }).join('')+'</tbody>';
+  }
+
+  document.getElementById('dimSeg').addEventListener('click', function(e){
+    var b=e.target.closest('button[data-d]'); if(!b) return;
+    dim=b.dataset.d;
+    this.querySelectorAll('button').forEach(function(x){ x.classList.toggle('is-active',x===b); });
+    paint();
+  });
+  ['fRange','fCo','fRep','fWh','fCat','fMetric'].forEach(function(id){
+    document.getElementById(id).addEventListener('change', paint);
+  });
+  document.getElementById('exp').addEventListener('click', function(){
+    U.download('tbm-report-'+dim+'.csv', U.csv([current.head].concat(current.rows)));
+    TBM.toast('Report exported');
+  });
+
+  paint();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>TBM Admin</title>
+<script>
+  (function () {
+    var signedIn = false;
+    try { signedIn = !!localStorage.getItem('tbm.admin'); } catch (e) {}
+    location.replace(signedIn ? 'dashboard/' : 'login/');
+  })();
+</script>
+</head>
+<body>
+<p style="font-family:system-ui;padding:32px">Redirecting to the <a href="login/">admin sign-in</a>…</p>
+</body>
+</html>

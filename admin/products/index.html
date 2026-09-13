@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Products &amp; SKUs — TBM Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/css/style.css">
+<link rel="stylesheet" href="../../assets/css/admin.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect width='40' height='40' rx='10' fill='%230E2318'/><path d='M12 15h16l1 13.5a1.2 1.2 0 0 1-1.2 1.3H12.2a1.2 1.2 0 0 1-1.2-1.3Z' fill='%23F7F4ED'/><path d='M16 15.5c0-4 8-4 8 0' stroke='%23B9793C' stroke-width='2.1' fill='none' stroke-linecap='round'/></svg>">
+<script src="../../assets/js/bags.js"></script>
+<script src="../../assets/js/data.js"></script>
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/admin-data.js"></script>
+<script src="../../assets/js/admin.js"></script>
+</head>
+<body class="adm-body-root">
+<div id="adm-root"></div>
+
+<script>
+(function(){
+  var U = TBMAdminUI;
+  if (!U.guard()) return;
+  var I = TBM.I, D = TBMData, A = TBMAdmin, B = TBMBags;
+
+  var mount = U.renderShell('products', 'Products & SKUs', 'Mill references mapped to customer item numbers');
+  var f = { q:'', cat:'', flag:'' };
+
+  var sold = {};
+  A.byItem().forEach(function(x){ sold[x.key] = x; });
+
+  mount.innerHTML =
+    '<div class="adm-head">'+
+      '<div><h2>Products &amp; SKUs</h2><p>The left column is the mill reference used on purchase orders. The right column is what every customer sees — on the site, the packing slip and the invoice. Change a mill and the customer number never moves.</p></div>'+
+      '<div class="row" style="gap:10px">'+
+        '<button class="btn btn-outline" id="exp">Export mapping</button>'+
+        '<button class="btn btn-primary" id="newP">Add an item</button>'+
+      '</div>'+
+    '</div>'+
+
+    '<div class="panel" style="margin-bottom:18px;border-color:var(--kraft)">'+
+      '<div class="panel-head" style="background:var(--kraft-100)">'+
+        '<h3>1 mill reference has no customer item number</h3>'+
+        '<span class="small muted">It came in on this morning’s sheet and its stock is being held back</span></div>'+
+      '<div class="panel-body">'+
+        '<div class="table-wrap"><table class="table table-compact adm-table">'+
+          '<thead><tr><th style="color:var(--bad)">Parent SKU</th><th>Description from the mill</th><th>Colour</th><th class="num">Qty offered</th><th>Assign item number</th><th></th></tr></thead>'+
+          '<tbody><tr>'+
+            '<td class="sku-parent">BPK140</td>'+
+            '<td>CANVAS CROSSBODY 12OZ</td><td class="muted">NATURAL</td><td class="num">3,200</td>'+
+            '<td><input class="input" id="newSku" value="DS4685" style="height:34px;width:120px;font-family:var(--f-mono);font-size:.8125rem"></td>'+
+            '<td class="num"><button class="btn btn-primary btn-sm" id="mapIt">Map &amp; publish</button></td>'+
+          '</tr></tbody></table></div>'+
+        '<div class="note-box" style="margin-top:14px">'+I.shield+
+          '<span>Unmapped stock is never published. A customer cannot order something that has no item number, which is what stops mill references leaking onto a packing slip.</span></div>'+
+      '</div>'+
+    '</div>'+
+
+    '<div class="mini-kpi" id="kpis" style="margin-bottom:18px"></div>'+
+
+    '<div class="adm-toolbar">'+
+      '<div class="field" style="flex:1;min-width:200px"><label class="label" for="fq">Search</label>'+
+        '<input class="input" id="fq" type="search" placeholder="Item number, mill reference, name or material"></div>'+
+      '<div class="field"><label class="label" for="fCat">Category</label><select class="select" id="fCat"></select></div>'+
+      '<div class="field"><label class="label" for="fFlag">Programme</label>'+
+        '<select class="select" id="fFlag"><option value="">All</option><option value="bestseller">Bestseller</option>'+
+        '<option value="new">New</option><option value="eco">Eco / certified</option><option value="value">Value</option></select></div>'+
+      '<div class="spacer"></div>'+
+      '<button class="btn btn-ghost btn-sm" id="clear">Clear</button>'+
+    '</div>'+
+
+    '<div class="panel">'+
+      '<div class="panel-head"><h3 id="count"></h3><span class="small muted">Cost is the last imported FOB. It is never shown to a customer.</span></div>'+
+      '<div class="table-wrap"><table class="table adm-table" id="tbl"></table></div>'+
+    '</div>';
+
+  document.getElementById('fCat').innerHTML = '<option value="">All categories</option>'+
+    D.CATEGORIES.map(function(c){ return '<option value="'+c.slug+'">'+c.name+'</option>'; }).join('');
+
+  function filtered(){
+    var q = f.q.trim().toLowerCase();
+    return D.PRODUCTS.filter(function(p){
+      if (f.cat && p.cat!==f.cat) return false;
+      if (f.flag && p.flags.indexOf(f.flag)<0) return false;
+      if (q && (p.sku+' '+p.parentSku+' '+p.name+' '+p.material).toLowerCase().indexOf(q)<0) return false;
+      return true;
+    });
+  }
+
+  function paint(){
+    var list = filtered();
+    var totalStock = D.PRODUCTS.reduce(function(s,p){ return s+D.totalStock(p); },0);
+    var stockValue = D.PRODUCTS.reduce(function(s,p){ return s + D.totalStock(p)*p.base*0.52; },0);
+    document.getElementById('kpis').innerHTML =
+      '<div class="stat"><div class="lab">Items</div><div class="val">'+D.PRODUCTS.length+'</div><div class="sub">across '+D.CATEGORIES.length+' categories</div></div>'+
+      '<div class="stat"><div class="lab">Mapped SKUs</div><div class="val">'+D.PRODUCTS.length+'</div><div class="sub">1 mill reference unmapped</div></div>'+
+      '<div class="stat"><div class="lab">Units in stock</div><div class="val">'+U.compact(totalStock)+'</div><div class="sub">all three warehouses</div></div>'+
+      '<div class="stat"><div class="lab">Stock at cost</div><div class="val">'+TBM.usd(stockValue)+'</div><div class="sub">FOB valuation</div></div>';
+
+    document.getElementById('count').textContent = list.length+' item'+(list.length===1?'':'s');
+
+    document.getElementById('tbl').innerHTML =
+      '<thead><tr><th></th><th style="color:var(--bad)">Parent SKU</th><th style="color:var(--ok)">Item number</th>'+
+      '<th>Description</th><th>Category</th><th>Material</th><th class="num">MOQ</th><th class="num">Colours</th>'+
+      '<th class="num">Stock</th><th class="num">FOB</th><th class="num">Sold 12m</th><th>Live</th><th></th></tr></thead><tbody>'+
+      list.map(function(p){
+        var s = sold[p.sku];
+        var st = D.totalStock(p);
+        return '<tr>'+
+          '<td style="width:50px"><span style="width:38px;display:block;border:1px solid var(--line);border-radius:7px;overflow:hidden">'+
+            B.figure(p.shape,p.colors[0],{alt:p.name})+'</span></td>'+
+          '<td class="sku-parent nw">'+p.parentSku+'</td>'+
+          '<td class="nw"><a class="lk mono" href="../product/?sku='+p.sku+'">'+p.sku+'</a></td>'+
+          '<td><span class="trunc" style="max-width:210px">'+p.name+'</span></td>'+
+          '<td class="nw muted">'+(D.catBySlug(p.cat)||{name:p.cat}).name+'</td>'+
+          '<td class="nw muted">'+p.material+'</td>'+
+          '<td class="num">'+TBM.num(p.moq)+'</td>'+
+          '<td class="num"><span class="row" style="gap:3px;justify-content:flex-end">'+
+            p.colors.slice(0,4).map(function(k){
+              return '<span class="swatch" style="width:14px;height:14px;background:'+B.color(k).body+'"></span>';
+            }).join('')+(p.colors.length>4?'<span class="small muted">+'+(p.colors.length-4)+'</span>':'')+'</span></td>'+
+          '<td class="num"><b>'+TBM.num(st)+'</b></td>'+
+          '<td class="num muted">'+TBM.usd(p.base*0.52)+'</td>'+
+          '<td class="num">'+(s?TBM.num(s.pieces):'<span class="muted">—</span>')+'</td>'+
+          '<td><label class="sw"><input type="checkbox" checked data-live="'+p.sku+'"><span class="track"></span></label></td>'+
+          '<td class="num"><a class="btn btn-outline btn-sm" href="../product/?sku='+p.sku+'">Edit</a></td></tr>';
+      }).join('')+'</tbody>';
+
+    document.querySelectorAll('[data-live]').forEach(function(cb){
+      cb.addEventListener('change', function(){
+        TBM.toast(this.dataset.live + (this.checked ? ' published to the storefront' : ' hidden from the storefront'));
+      });
+    });
+  }
+
+  ['fCat','fFlag'].forEach(function(id){
+    document.getElementById(id).addEventListener('change', function(){
+      f[{fCat:'cat',fFlag:'flag'}[id]] = this.value; paint();
+    });
+  });
+  var t;
+  document.getElementById('fq').addEventListener('input', function(e){
+    clearTimeout(t); t=setTimeout(function(){ f.q=e.target.value; paint(); },200);
+  });
+  document.getElementById('clear').addEventListener('click', function(){
+    f={q:'',cat:'',flag:''};
+    document.getElementById('fq').value='';
+    ['fCat','fFlag'].forEach(function(id){ document.getElementById(id).value=''; });
+    paint();
+  });
+  document.getElementById('mapIt').addEventListener('click', function(){
+    var v = document.getElementById('newSku').value.trim().toUpperCase();
+    if (!/^DS\d{4}$/.test(v)){ TBM.toast('Item numbers look like DS4685.'); return; }
+    TBM.toast('BPK140 mapped to '+v+' — 3,200 pieces published to the storefront');
+    document.querySelector('.panel[style*="var(--kraft)"]').remove();
+  });
+  document.getElementById('newP').addEventListener('click', function(){
+    TBM.toast('New item form — a parent SKU and a customer item number are both required');
+  });
+  document.getElementById('exp').addEventListener('click', function(){
+    U.download('tbm-sku-mapping.csv', U.csv(
+      [['Parent SKU (internal)','Item number (customer facing)','Description','Category','Material','MOQ','Colours','Stock','FOB cost']].concat(
+        filtered().map(function(p){
+          return [p.parentSku,p.sku,p.name,(D.catBySlug(p.cat)||{name:''}).name,p.material,p.moq,p.colors.length,D.totalStock(p),(p.base*0.52).toFixed(2)];
+        }))
+    ));
+    TBM.toast('SKU mapping exported');
+  });
+
+  paint();
+})();
+</script>
+</body>
+</html>

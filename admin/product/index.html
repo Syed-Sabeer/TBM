@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Item — TBM Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/css/style.css">
+<link rel="stylesheet" href="../../assets/css/admin.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect width='40' height='40' rx='10' fill='%230E2318'/><path d='M12 15h16l1 13.5a1.2 1.2 0 0 1-1.2 1.3H12.2a1.2 1.2 0 0 1-1.2-1.3Z' fill='%23F7F4ED'/><path d='M16 15.5c0-4 8-4 8 0' stroke='%23B9793C' stroke-width='2.1' fill='none' stroke-linecap='round'/></svg>">
+<script src="../../assets/js/bags.js"></script>
+<script src="../../assets/js/data.js"></script>
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/admin-data.js"></script>
+<script src="../../assets/js/admin.js"></script>
+</head>
+<body class="adm-body-root">
+<div id="adm-root"></div>
+
+<script>
+(function(){
+  var U = TBMAdminUI;
+  if (!U.guard()) return;
+  var I = TBM.I, D = TBMData, A = TBMAdmin, B = TBMBags;
+
+  var p = D.byId(TBM.qp('sku') || '') || D.PRODUCTS[0];
+  var mount = U.renderShell('products', p.sku, p.name + ' · mill ref ' + p.parentSku);
+  document.title = p.sku + ' — TBM Admin';
+
+  var cost = p.base*0.52;
+  var itemOrders = A.ORDERS.filter(function(o){
+    return o.status!=='Cancelled' && o.lines.some(function(l){ return l.sku===p.sku; });
+  });
+  var months = (function(){
+    var m = A.byMonth(itemOrders, 12);
+    /* restrict to this item's lines */
+    var map = {}; m.forEach(function(b){ b.pieces=0; b.spend=0; b.orders=0; map[b.key]=b; });
+    itemOrders.forEach(function(o){
+      var k = o.date.getFullYear()+'-'+String(o.date.getMonth()+1).padStart(2,'0');
+      if (!map[k]) return;
+      var c = A.company(o.companyId);
+      o.lines.filter(function(l){ return l.sku===p.sku; }).forEach(function(l){
+        map[k].pieces += l.qty;
+        map[k].spend += A.priceFor(c,p,l.qty)*l.qty;
+      });
+      map[k].orders++;
+    });
+    return m;
+  })();
+  var pcs12 = months.reduce(function(s,m){ return s+m.pieces; },0);
+  var rev12 = months.reduce(function(s,m){ return s+m.spend; },0);
+
+  mount.innerHTML =
+    '<div class="adm-head">'+
+      '<div>'+
+        '<nav class="crumbs" style="margin-bottom:10px"><a href="../dashboard/">Dashboard</a>'+I.chev+
+          '<a href="../products/">Products</a>'+I.chev+'<span class="current">'+p.sku+'</span></nav>'+
+        '<h2>'+p.name+'</h2>'+
+        '<div class="sku-pair" style="margin-top:8px">'+
+          '<span class="badge badge-bad" style="height:24px">Internal '+p.parentSku+'</span>'+
+          '<span>'+I.arrow+'</span>'+
+          '<span class="badge badge-ok" style="height:24px">Customer sees '+p.sku+'</span>'+
+        '</div>'+
+      '</div>'+
+      '<div class="row" style="gap:10px">'+
+        '<a class="btn btn-outline" href="../../product.html?sku='+p.sku+'" target="_blank">View on the storefront</a>'+
+        '<button class="btn btn-primary" id="save">Save</button>'+
+      '</div>'+
+    '</div>'+
+
+    '<div class="mini-kpi" style="margin-bottom:20px">'+
+      '<div class="stat"><div class="lab">Stock, all warehouses</div><div class="val">'+TBM.num(D.totalStock(p))+'</div>'+
+        '<div class="sub">MOQ '+TBM.num(p.moq)+'</div></div>'+
+      '<div class="stat"><div class="lab">Sold, 12 months</div><div class="val">'+TBM.num(pcs12)+'</div>'+
+        '<div class="sub">'+itemOrders.length+' orders</div>'+
+        '<div class="spark">'+U.sparkline(months.map(function(m){return m.pieces;}))+'</div></div>'+
+      '<div class="stat"><div class="lab">Revenue, 12 months</div><div class="val">'+TBM.usd(rev12)+'</div>'+
+        '<div class="sub">blended '+TBM.usd(pcs12?rev12/pcs12:0)+' per piece</div></div>'+
+      '<div class="stat"><div class="lab">FOB cost</div><div class="val">'+TBM.usd(cost)+'</div>'+
+        '<div class="sub">last import 13 Sep · never shown to customers</div></div>'+
+    '</div>'+
+
+    '<div class="adm-split">'+
+      '<div>'+
+        '<div class="panel" style="margin-bottom:20px">'+
+          '<div class="panel-head"><h3>Identity</h3><span class="badge badge-warn">Changing the item number changes what every customer sees</span></div>'+
+          '<div class="panel-body">'+
+            '<div class="field-row">'+
+              '<div class="field"><label class="label">Parent SKU <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:450">(internal, used on POs)</span></label>'+
+                '<input class="input mono" value="'+p.parentSku+'"></div>'+
+              '<div class="field"><label class="label">Customer item number</label>'+
+                '<input class="input mono" value="'+p.sku+'"></div>'+
+            '</div>'+
+            '<div class="field" style="margin-top:16px"><label class="label">Description on the storefront</label>'+
+              '<input class="input" value="'+p.name+'"></div>'+
+            '<div class="field-row" style="margin-top:16px">'+
+              '<div class="field"><label class="label">Category</label><select class="select">'+
+                D.CATEGORIES.map(function(c){ return '<option value="'+c.slug+'" '+(p.cat===c.slug?'selected':'')+'>'+c.name+'</option>'; }).join('')+'</select></div>'+
+              '<div class="field"><label class="label">Material</label><input class="input" value="'+p.material+'"></div>'+
+            '</div>'+
+            '<div class="field-row" style="margin-top:16px">'+
+              '<div class="field"><label class="label">Fabric weight</label><input class="input" value="'+p.weight+'"></div>'+
+              '<div class="field"><label class="label">Minimum order</label><input class="input" value="'+p.moq+'"></div>'+
+            '</div>'+
+            '<div class="note-box" style="margin-top:18px">'+I.shield+
+              '<span>The parent SKU appears on purchase orders and the warehouse pick list only. It is filtered out of every customer-facing screen and document.</span></div>'+
+          '</div>'+
+        '</div>'+
+
+        '<div class="panel" style="margin-bottom:20px">'+
+          '<div class="panel-head"><h3>Colourways</h3><button class="btn btn-outline btn-sm" id="addCol">Add a colour</button></div>'+
+          '<div class="table-wrap"><table class="table table-compact adm-table" id="colTbl"></table></div>'+
+        '</div>'+
+
+        '<div class="panel" style="margin-bottom:20px">'+
+          '<div class="panel-head"><h3>Stock by warehouse</h3>'+
+            '<a class="link-arrow" href="../inventory/?sku='+p.sku+'">Adjust <span>'+I.arrow+'</span></a></div>'+
+          '<div class="table-wrap"><table class="table table-compact adm-table" id="whTbl"></table></div>'+
+        '</div>'+
+
+        '<div class="chart-card">'+
+          '<div class="panel-head"><div><h3>Pieces sold by month</h3>'+
+            '<div class="small muted" style="margin-top:3px">All accounts, last 12 months</div></div></div>'+
+          '<div class="chart-body"><div id="itemChart" style="min-height:210px"></div></div>'+
+        '</div>'+
+      '</div>'+
+
+      '<div style="display:grid;gap:18px">'+
+        '<div class="panel"><div class="panel-body" style="padding:0">'+
+          B.figure(p.shape,p.colors[0],{alt:p.name})+
+        '</div><div class="panel-body"><div class="sku-cust">'+p.sku+'</div>'+
+          '<b style="font-size:.875rem;display:block;margin-top:4px">'+p.name+'</b>'+
+          '<div class="small muted" style="margin-top:4px">'+p.material+' · '+p.sizes[0]+'</div></div></div>'+
+
+        '<div class="panel"><div class="panel-head"><h3>Price by tier</h3></div><div class="panel-body">'+
+          '<p class="small muted" style="margin-bottom:12px">At the '+TBM.num(D.BREAKS[2])+' break, before any account override.</p>'+
+          ['A','B','C'].map(function(t){
+            var v = p.base*D.BREAK_FACTOR[2]*D.TIERS[t].factor;
+            var m = (v-cost)/v*100;
+            return '<div class="summary-row" style="padding:7px 0"><span class="muted">'+D.TIERS[t].name+'</span>'+
+              '<span class="v">'+TBM.usd(v)+' <span style="color:'+(m<28?'var(--warn)':'var(--ok)')+'">('+m.toFixed(0)+'%)</span></span></div>';
+          }).join('')+
+          '<div class="field" style="margin-top:16px"><label class="label">Base price (Tier C at '+TBM.num(D.BREAKS[0])+')</label>'+
+            '<input class="input" id="baseInput" value="'+p.base.toFixed(2)+'"></div>'+
+          '<div class="hint">Changing this moves every tier and every account that has no override.</div>'+
+          '<a class="btn btn-outline btn-sm btn-block" style="margin-top:14px" href="../pricing/?sku='+p.sku+'">See all account prices</a>'+
+        '</div></div>'+
+
+        '<div class="panel"><div class="panel-head"><h3>Who buys it</h3></div><div class="panel-body" id="buyers"></div></div>'+
+
+        '<div class="panel"><div class="panel-head"><h3>Storefront flags</h3></div><div class="panel-body" style="display:grid;gap:10px">'+
+          [['bestseller','Bestseller'],['new','New'],['eco','Eco / certified'],['value','Value priced'],['premium','Premium build'],['gots','GOTS'],['grs','GRS']]
+            .map(function(fl){
+              return '<label class="sw"><input type="checkbox" '+(p.flags.indexOf(fl[0])>-1?'checked':'')+'><span class="track"></span>'+fl[1]+'</label>';
+            }).join('')+
+        '</div></div>'+
+      '</div>'+
+    '</div>';
+
+  /* Colourways */
+  function paintColors(){
+    document.getElementById('colTbl').innerHTML =
+      '<thead><tr><th>Colour</th><th>Mill shade name</th>'+
+      D.WAREHOUSES.map(function(w){ return '<th class="num">'+w.code+'</th>'; }).join('')+
+      '<th class="num">Total</th><th>Live</th><th></th></tr></thead><tbody>'+
+      p.colors.map(function(k,i){
+        var c = B.color(k);
+        var split = D.WAREHOUSES.map(function(w,j){
+          return Math.round((p.stock[w.code]||0)/p.colors.length);
+        });
+        return '<tr><td><span class="row" style="gap:9px"><span class="swatch" style="width:20px;height:20px;background:'+c.body+'"></span><b>'+c.name+'</b></span></td>'+
+          '<td class="mono muted" style="font-size:.6875rem">'+c.name.toUpperCase()+'</td>'+
+          split.map(function(q){ return '<td class="num">'+TBM.num(q)+'</td>'; }).join('')+
+          '<td class="num"><b>'+TBM.num(split.reduce(function(s,x){return s+x;},0))+'</b></td>'+
+          '<td><label class="sw"><input type="checkbox" checked><span class="track"></span></label></td>'+
+          '<td class="num"><button class="btn btn-ghost btn-sm" style="color:var(--bad)" data-rm="'+k+'">Remove</button></td></tr>';
+      }).join('')+'</tbody>';
+    document.querySelectorAll('[data-rm]').forEach(function(b){
+      b.addEventListener('click', function(){
+        TBM.toast(B.color(b.dataset.rm).name+' retired — existing stock still sells through');
+      });
+    });
+  }
+  paintColors();
+  document.getElementById('addCol').addEventListener('click', function(){
+    TBM.toast('Add a colourway — it appears on the storefront once the first lot lands');
+  });
+
+  /* Warehouses */
+  document.getElementById('whTbl').innerHTML =
+    '<thead><tr><th>Warehouse</th><th>Region</th><th class="num">On hand</th><th class="num">Allocated</th>'+
+    '<th class="num">Available</th><th class="num">On order</th><th>Next intake</th></tr></thead><tbody>'+
+    D.WAREHOUSES.map(function(w,i){
+      var q = p.stock[w.code]||0;
+      var alloc = Math.round(q*0.08);
+      return '<tr><td><b>'+w.name+'</b></td><td class="muted">'+w.region+'</td>'+
+        '<td class="num">'+TBM.num(q)+'</td>'+
+        '<td class="num muted">'+TBM.num(alloc)+'</td>'+
+        '<td class="num"><b>'+TBM.num(q-alloc)+'</b></td>'+
+        '<td class="num muted">'+TBM.num(2000+i*1500)+'</td>'+
+        '<td class="muted">'+U.fmtShort(new Date(A.TODAY.getFullYear(),A.TODAY.getMonth(),A.TODAY.getDate()+7+i*9))+'</td></tr>';
+    }).join('')+'</tbody>';
+
+  /* Chart */
+  U.columnChart(document.getElementById('itemChart'), months.map(function(m){
+    return { label:m.label, full:m.full, value:m.pieces,
+      tip: TBM.num(m.pieces)+' pieces<br><span class="k">'+TBM.usd(m.spend)+' · '+m.orders+' orders</span>' };
+  }), { alt:'Pieces sold by month' });
+
+  /* Buyers */
+  var buyers = {};
+  itemOrders.forEach(function(o){
+    var c = A.company(o.companyId);
+    o.lines.filter(function(l){ return l.sku===p.sku; }).forEach(function(l){
+      if (!buyers[o.company]) buyers[o.company]={pcs:0,spend:0,id:o.companyId};
+      buyers[o.company].pcs += l.qty;
+      buyers[o.company].spend += A.priceFor(c,p,l.qty)*l.qty;
+    });
+  });
+  document.getElementById('buyers').innerHTML = U.barList(
+    Object.keys(buyers).map(function(k){
+      return { label:k, value:buyers[k].pcs, display:TBM.num(buyers[k].pcs)+' pcs', sub:TBM.usd(buyers[k].spend) };
+    }).sort(function(a,b){ return b.value-a.value; }).slice(0,7), { narrow:true });
+
+  document.getElementById('save').addEventListener('click', function(){
+    var v = parseFloat(document.getElementById('baseInput').value);
+    if (!isNaN(v) && v>0) p.base = v;
+    TBM.toast(p.sku+' saved — every account price recalculated');
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sustainability — TBM Wholesale Bags</title>
+<meta name="description" content="GOTS organic and GRS recycled programmes with per-shipment transaction certificates, OEKO-TEX Standard 100 and SMETA-audited mills. Certified where it counts, honest where it isn't.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect width='40' height='40' rx='10' fill='%231C3D2E'/><path d='M12 15h16l1 13.5a1.2 1.2 0 0 1-1.2 1.3H12.2a1.2 1.2 0 0 1-1.2-1.3Z' fill='%23F7F4ED'/><path d='M16 15.5c0-4 8-4 8 0' stroke='%23B9793C' stroke-width='2.1' fill='none' stroke-linecap='round'/></svg>">
+<script src="assets/js/bags.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+</head>
+<body>
+
+<div id="site-header"></div>
+<script>TBM.renderHeader('sustain')</script>
+
+<!-- ============ HERO ============ -->
+<section class="hero-page">
+  <div class="container">
+    <nav class="crumbs" style="padding-top:24px;margin-bottom:0"><a href="index.html">Home</a><span data-ico="chev"></span><span class="current">Sustainability</span></nav>
+    <div class="hero-page-inner">
+      <div>
+        <span class="eyebrow">Sustainability</span>
+        <h1 class="display-1">Certified where it counts. <em>Honest</em> where it doesn't.</h1>
+        <p class="lede">We run GOTS organic and GRS recycled programmes with transaction certificates you can hand straight to your own compliance team. Everything else we call what it is: cotton, jute, polyester.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary btn-lg" href="shop.html?flag=eco">Shop certified items</a>
+          <a class="btn btn-outline btn-lg" href="#documents">Download certificates</a>
+        </div>
+      </div>
+      <div class="hero-page-art" id="heroArt"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ POSITION ============ -->
+<section class="section">
+  <div class="container container-narrow">
+    <div class="reveal">
+      <span class="eyebrow">Our position</span>
+      <h2 class="h2" style="margin:14px 0 20px">A tote bag is not automatically a good deed</h2>
+      <p style="font-size:1.0625rem;color:var(--ink-2)">A cotton tote has to be used a lot of times before it beats the plastic bag it replaced. Everyone in this industry knows that, and most of us quietly avoid saying it. We would rather be the supplier that says it out loud, because it changes what a good bag looks like.</p>
+      <p style="font-size:1.0625rem;color:var(--ink-2)">A bag that gets used two hundred times is worth more, environmentally, than a bag with a leaf printed on it that gets thrown away after one conference. So the most useful thing we can do is make bags people keep: correct fabric weight for the job, seams that survive the washing machine, handles bar-tacked where they take the load. Durability is the sustainability feature that actually does the work.</p>
+
+      <div class="pull">
+        <p>“The greenest bag we sell is the one your customer is still carrying in four years.”</p>
+        <cite>Lia Moreau, Sustainability &amp; Compliance</cite>
+      </div>
+
+      <p style="font-size:1.0625rem;color:var(--ink-2)">On top of that we run proper certified programmes, because a claim without a certificate behind it is just marketing — and increasingly your customers' procurement teams know it.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CERTIFICATIONS ============ -->
+<section class="section section-tint" id="certifications">
+  <div class="container">
+    <div class="section-head reveal">
+      <div>
+        <span class="eyebrow">Certifications</span>
+        <h2 class="h2" style="margin-top:14px">What we hold, and what it actually covers</h2>
+        <p class="lede">A certification covers a specific thing. These are the four we hold and the precise scope of each, so you can tell your customer something true.</p>
+      </div>
+    </div>
+    <div class="grid g-2 reveal" id="certGrid" style="gap:18px"></div>
+  </div>
+</section>
+
+<!-- ============ MATERIALS ============ -->
+<section class="section">
+  <div class="container">
+    <div class="section-head reveal">
+      <div>
+        <span class="eyebrow">Materials</span>
+        <h2 class="h2" style="margin-top:14px">Every fabric we stock, and the claim you can make about it</h2>
+        <p class="lede">If the "claim you can make" column is blank, please do not make one. It protects you as much as us.</p>
+      </div>
+      <a class="btn btn-outline" href="shop.html?flag=eco">Browse certified items</a>
+    </div>
+    <div class="panel reveal">
+      <div class="table-wrap"><table class="table" id="matTable"></table></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SUPPLY CHAIN ============ -->
+<section class="section section-dark">
+  <div class="container">
+    <div class="section-head reveal">
+      <div>
+        <span class="eyebrow">Supply chain</span>
+        <h2 class="h2" style="margin-top:14px">Fourteen mills, all of them visited</h2>
+        <p class="lede" style="color:#A9BBAD">We do not buy through agents. Every mill in our chain has been walked by our own head of sourcing, and the two largest carry a current SMETA 4-pillar audit.</p>
+      </div>
+    </div>
+    <div class="method-grid reveal" id="chainGrid"></div>
+
+    <div class="grid g-2 reveal" style="margin-top:44px;gap:40px;align-items:start">
+      <div>
+        <h3 class="h3" style="color:#fff;margin-bottom:16px">What we audit for</h3>
+        <ul class="check-list">
+          <li><span class="tick" data-ico="check"></span><span style="color:#CFDCD2">Wages at or above the legal minimum, paid on time, with records</span></li>
+          <li><span class="tick" data-ico="check"></span><span style="color:#CFDCD2">No under-age labour, verified against documents not claims</span></li>
+          <li><span class="tick" data-ico="check"></span><span style="color:#CFDCD2">Working hours within local law, overtime voluntary and paid</span></li>
+          <li><span class="tick" data-ico="check"></span><span style="color:#CFDCD2">Fire exits, machine guarding and chemical storage</span></li>
+          <li><span class="tick" data-ico="check"></span><span style="color:#CFDCD2">Effluent treatment at every wet-processing site</span></li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="h3" style="color:#fff;margin-bottom:16px">What happens when something fails</h3>
+        <p style="color:#A9BBAD;font-size:.9375rem">A finding does not end the relationship on its own — walking away usually just moves the problem somewhere less visible. We agree a corrective action plan with a date, re-audit against it, and stop buying if the date passes without movement. We have ended two mill relationships that way since 2019.</p>
+        <p style="color:#A9BBAD;font-size:.9375rem">Serious findings — under-age labour, forced labour, withheld documents — are different. Those end the relationship immediately and we say so in the contract.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PACKAGING ============ -->
+<section class="section">
+  <div class="container">
+    <div class="split">
+      <div class="reveal">
+        <span class="eyebrow">Packaging</span>
+        <h2 class="h2" style="margin:14px 0 18px">The part nobody photographs</h2>
+        <p class="lede" style="margin-bottom:24px">You can ship a certified organic tote inside a virgin polybag and a fresh carton, and plenty of suppliers do. We are working through ours — here is exactly where it stands.</p>
+        <div class="panel">
+          <div class="table-wrap"><table class="table table-compact" id="packTable"></table></div>
+        </div>
+        <div class="note-box" style="margin-top:18px">
+          <span data-ico="box"></span>
+          <span>Bulk-packed is always an option. Ask your rep to ship a run loose in the carton and you skip the individual polybag entirely — most warehouse programmes do not need it.</span>
+        </div>
+      </div>
+      <div class="reveal" id="packArt" style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WHAT WE DON'T CLAIM ============ -->
+<section class="section section-tint">
+  <div class="container container-narrow">
+    <div class="candid reveal">
+      <span class="eyebrow">Straight answers</span>
+      <h3 style="font-size:1.25rem;margin:14px 0 14px;font-family:var(--f-display);font-weight:600;letter-spacing:-.015em">What we do not claim</h3>
+      <p><b>We are not carbon neutral.</b> We have not bought offsets to say we are. We measure scope 1 and 2 emissions at the three warehouses and we are working on scope 3, which is where almost all of it actually sits. When we have a number we trust, it will go on this page.</p>
+      <p><b>"Eco" is not a certification.</b> The eco badge on our listings means the item is in a GOTS or GRS programme, or is made from recycled content, and each listing says which. It is not a general environmental score and we will not let it be read as one.</p>
+      <p><b>Biodegradable is not a claim we make.</b> Cotton in a landfill does not helpfully disappear, and "biodegradable" polyester additives have not convinced us. We would rather sell you a bag that lasts.</p>
+      <p><b>We are not the whole supply chain.</b> Our certificates cover the mills and the conversion. They do not cover the cotton farm four steps upstream, and any supplier telling you otherwise is overreaching.</p>
+      <p style="margin-bottom:0"><b>Ask us for evidence.</b> If we cannot produce a document for a claim, treat the claim as marketing — including ours.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DOCUMENTS ============ -->
+<section class="section" id="documents">
+  <div class="container">
+    <div class="section-head reveal">
+      <div>
+        <span class="eyebrow">Evidence</span>
+        <h2 class="h2" style="margin-top:14px">Paperwork you can forward</h2>
+        <p class="lede">Scope certificates are public. Transaction certificates are issued per shipment and appear in your account once an order ships.</p>
+      </div>
+      <a class="btn btn-outline" href="login.html">Sign in for your TCs</a>
+    </div>
+    <div class="grid g-2 reveal" style="gap:22px;align-items:start">
+      <div class="panel">
+        <div class="panel-head"><h3>Public documents</h3></div>
+        <div class="panel-body"><ul class="dl-list" id="docList"></ul></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Per-shipment certificates</h3></div>
+        <div class="panel-body">
+          <p style="font-size:.9375rem;color:var(--ink-2)">A scope certificate proves a mill is certified. It does not prove your goods came from a certified batch — only a transaction certificate does that, and it is the document your customer's compliance team will eventually ask for.</p>
+          <p style="font-size:.9375rem;color:var(--ink-2)">We issue a TC for every shipment of certified goods, not once a year. It lands against the order in your dashboard alongside the packing slip and invoice.</p>
+          <ul class="check-list" style="margin:20px 0 22px">
+            <li><span class="tick" data-ico="check"></span><span class="small">Issued per shipment, referencing your item numbers</span></li>
+            <li><span class="tick" data-ico="check"></span><span class="small">Available in your order history the day it ships</span></li>
+            <li><span class="tick" data-ico="check"></span><span class="small">Free — we do not charge for compliance paperwork</span></li>
+          </ul>
+          <a class="btn btn-primary btn-block" href="login.html">View your certificates</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA ============ -->
+<section class="section-sm">
+  <div class="container">
+    <div class="cta-band reveal">
+      <div class="cta-band-inner">
+        <div>
+          <h2 class="h2">Need a certified programme priced?</h2>
+          <p>Tell us the volume and the claim your customer needs to make, and we will come back with the right fabric and the paperwork that supports it.</p>
+        </div>
+        <div class="row" style="gap:12px;flex-wrap:wrap">
+          <a class="btn btn-light btn-lg" href="contact.html">Talk to compliance</a>
+          <a class="btn btn-onwash btn-lg" href="shop.html?flag=eco">Browse certified stock</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div id="site-footer"></div>
+<script>TBM.renderFooter()</script>
+
+<script>
+(function(){
+  var I = TBM.I, B = TBMBags;
+  document.querySelectorAll('[data-ico]').forEach(function(el){ el.innerHTML = I[el.dataset.ico] || ''; });
+
+  document.getElementById('heroArt').innerHTML =
+    [['jute','jute'],['tote','sage'],['pouch','natural'],['boxy','olive']]
+      .map(function(x){ return B.figure(x[0], x[1], { alt:'Certified bag' }); }).join('');
+
+  document.getElementById('packArt').innerHTML =
+    [['tote','bone'],['nonwoven','forest'],['pouch','sage'],['shoe','natural']]
+      .map(function(x){
+        return '<div style="border-radius:16px;overflow:hidden;border:1px solid var(--line)">'+
+          B.figure(x[0], x[1], { alt:'Packed bag' })+'</div>';
+      }).join('');
+
+  /* Certifications */
+  var CERTS = [
+    ['leaf','GOTS 6.0','Global Organic Textile Standard','Certified organic cotton',
+      'Covers the fibre and every processing step through to the finished bag, plus social criteria at each site. Our licence number and scope certificate are public.',
+      [['Scope','Organic cotton totes, pouches, drawstring'],['Licence','GOTS-LA-0412'],['Certifier','Control Union'],['Valid to','30 June 2027']]],
+    ['refresh','GRS 4.0','Global Recycled Standard','Recycled cotton and rPET',
+      'Verifies recycled content by mass balance and chain of custody, with the same social and environmental criteria as GOTS at each processing site.',
+      [['Scope','Recycled cotton, rPET, recycled denim'],['Licence','GRS-LA-0412'],['Certifier','Control Union'],['Valid to','30 June 2027']]],
+    ['shield','OEKO-TEX','Standard 100, Product Class II','Tested for harmful substances',
+      'Every component — fabric, thread, webbing, hardware and print — tested against the restricted substance list. Class II is the skin-contact class.',
+      [['Scope','All stock bodies'],['Certificate','24.HCN.12841'],['Certifier','Hohenstein'],['Valid to','31 March 2027']]],
+    ['users','SMETA','4-pillar audit','Labour, health, environment, ethics',
+      'Independent social audit at our two largest mills, covering wages, hours, age verification, safety and effluent. Reports are shared with customers on request.',
+      [['Scope','2 of 14 partner mills'],['Last audit','March 2026'],['Auditor','Intertek'],['Next due','March 2027']]]
+  ];
+  document.getElementById('certGrid').innerHTML = CERTS.map(function(c){
+    return '<article class="panel"><div class="panel-body">'+
+      '<div class="row" style="gap:14px;align-items:flex-start;margin-bottom:14px">'+
+        '<span style="width:44px;height:44px;border-radius:12px;background:var(--sage);color:var(--forest);display:grid;place-items:center;flex:none">'+I[c[0]]+'</span>'+
+        '<span><b style="font-size:1.0625rem;display:block;letter-spacing:-.01em">'+c[1]+'</b>'+
+        '<span class="small muted">'+c[2]+'</span></span>'+
+        '<span class="badge badge-eco" style="margin-left:auto">'+c[3]+'</span>'+
+      '</div>'+
+      '<p style="font-size:.9375rem;color:var(--ink-2)">'+c[4]+'</p>'+
+      c[5].map(function(r){ return '<div class="spec-row" style="padding:9px 0"><dt>'+r[0]+'</dt><dd>'+r[1]+'</dd></div>'; }).join('')+
+      '<a class="link-arrow" href="#documents" style="margin-top:16px">Scope certificate <span>'+I.arrow+'</span></a>'+
+    '</div></article>';
+  }).join('');
+
+  /* Materials */
+  var MATS = [
+    ['Organic cotton','GOTS 6.0','Certified organic cotton, with TC per shipment','Yes','India, Turkey'],
+    ['Recycled cotton','GRS 4.0','Post-industrial recycled content, % stated per item','Yes','India'],
+    ['rPET / recycled polyester','GRS 4.0','Post-consumer recycled polyester','Yes','Taiwan, India'],
+    ['Recycled denim','GRS 4.0','Post-industrial denim, blended with virgin cotton','Yes','India'],
+    ['Conventional cotton canvas','OEKO-TEX 100','Tested for harmful substances. No organic claim.','—','India, Bangladesh'],
+    ['Jute / burlap','OEKO-TEX 100','Natural bast fibre. Renewable, not certified organic.','—','Bangladesh'],
+    ['Laminated jute','OEKO-TEX 100','PP lamination. Not recyclable as a single stream.','—','Bangladesh'],
+    ['Cotton muslin','OEKO-TEX 100','Tested for harmful substances. No organic claim.','—','India'],
+    ['Non-woven polypropylene','OEKO-TEX 100','Virgin PP. Recyclable where facilities exist.','—','China, Vietnam'],
+    ['210D polyester','OEKO-TEX 100','Virgin polyester. rPET version available on request.','—','China'],
+    ['Poly velvet','OEKO-TEX 100','Virgin polyester pile.','—','China']
+  ];
+  document.getElementById('matTable').innerHTML =
+    '<thead><tr><th>Material</th><th>Certification</th><th>Claim you can make</th><th>TC issued</th><th>Origin</th></tr></thead><tbody>'+
+    MATS.map(function(m){
+      var certified = m[3]==='Yes';
+      return '<tr><td><b>'+m[0]+'</b></td>'+
+        '<td><span class="badge '+(certified?'badge-eco':'')+'">'+m[1]+'</span></td>'+
+        '<td class="'+(certified?'':'muted')+'">'+m[2]+'</td>'+
+        '<td>'+(certified?'<span class="badge badge-ok"><i class="dot"></i>Yes</span>':'<span class="muted">—</span>')+'</td>'+
+        '<td class="muted">'+m[4]+'</td></tr>';
+    }).join('')+'</tbody>';
+
+  /* Supply chain */
+  var CHAIN = [
+    ['pin','14 partner mills','India, Bangladesh, Turkey, Vietnam and China. No agents between us and the factory.'],
+    ['shield','Every site visited','Our head of sourcing walks each mill before we place a first order, and at least annually after that.'],
+    ['doc','Documented chain of custody','Certified fibre is tracked batch to bag, which is what makes a transaction certificate possible.'],
+    ['refresh','Corrective action, not exit','Findings get a plan and a date. We re-audit against it and stop buying if the date passes.']
+  ];
+  document.getElementById('chainGrid').innerHTML = CHAIN.map(function(c){
+    return '<article class="method"><div class="ico">'+I[c[0]]+'</div><h4>'+c[1]+'</h4><p>'+c[2]+'</p></article>';
+  }).join('');
+
+  /* Packaging */
+  var PACK = [
+    ['Individual polybag','Virgin LDPE','50% post-consumer recycled','Q1 2027'],
+    ['Master carton','Mixed recycled board','100% recycled, FSC certified','Done — Jan 2026'],
+    ['Carton tape','Solvent acrylic','Water-activated paper tape','Q3 2026'],
+    ['Pallet wrap','Virgin LLDPE','30% recycled, thinner gauge','Done — Apr 2026'],
+    ['Hang tags','Coated card','Uncoated recycled, soy ink','Q4 2026'],
+    ['Sample packs','Virgin polybag','Paper mailer, no polybag','Done — Feb 2026']
+  ];
+  document.getElementById('packTable').innerHTML =
+    '<thead><tr><th>Component</th><th>Was</th><th>Moving to</th><th>Status</th></tr></thead><tbody>'+
+    PACK.map(function(p){
+      var done = p[3].indexOf('Done')===0;
+      return '<tr><td><b>'+p[0]+'</b></td><td class="muted">'+p[1]+'</td><td>'+p[2]+'</td>'+
+        '<td><span class="badge '+(done?'badge-ok':'badge-warn')+'">'+p[3]+'</span></td></tr>';
+    }).join('')+'</tbody>';
+
+  /* Documents */
+  document.getElementById('docList').innerHTML = [
+    ['GOTS scope certificate','PDF','410 KB'],
+    ['GRS scope certificate','PDF','388 KB'],
+    ['OEKO-TEX Standard 100 certificate','PDF','290 KB'],
+    ['SMETA audit summary 2026','PDF','1.2 MB'],
+    ['Restricted substance list','PDF','160 KB'],
+    ['Prop 65 statement','PDF','44 KB'],
+    ['Supplier code of conduct','PDF','220 KB']
+  ].map(function(f){
+    return '<li><span class="fname"><span class="ftype">'+f[1]+'</span>'+f[0]+'</span>'+
+      '<span class="row" style="gap:14px"><span class="small muted">'+f[2]+'</span>'+
+      '<a class="btn btn-outline btn-sm" href="#">Download</a></span></li>';
+  }).join('');
+})();
+</script>
+</body>
+</html>

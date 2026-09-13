@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Customer — TBM Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/css/style.css">
+<link rel="stylesheet" href="../../assets/css/admin.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect width='40' height='40' rx='10' fill='%230E2318'/><path d='M12 15h16l1 13.5a1.2 1.2 0 0 1-1.2 1.3H12.2a1.2 1.2 0 0 1-1.2-1.3Z' fill='%23F7F4ED'/><path d='M16 15.5c0-4 8-4 8 0' stroke='%23B9793C' stroke-width='2.1' fill='none' stroke-linecap='round'/></svg>">
+<script src="../../assets/js/bags.js"></script>
+<script src="../../assets/js/data.js"></script>
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/admin-data.js"></script>
+<script src="../../assets/js/admin.js"></script>
+</head>
+<body class="adm-body-root">
+<div id="adm-root"></div>
+
+<script>
+(function(){
+  var U = TBMAdminUI;
+  if (!U.guard()) return;
+  var I = TBM.I, D = TBMData, A = TBMAdmin, B = TBMBags;
+
+  var c = A.company(TBM.qp('id')) || A.COMPANIES[0];
+  var mount = U.renderShell('customers', c.name, c.id + ' · ' + c.city + ', ' + c.state);
+  document.title = c.name + ' — TBM Admin';
+
+  var orders = A.ORDERS.filter(function(o){ return o.companyId===c.id; });
+  var liveO = orders.filter(function(o){ return o.status!=='Cancelled'; });
+  var months = A.byMonth(orders, 12);
+  var spend12 = months.reduce(function(s,m){ return s+m.spend; },0);
+  var pieces12 = months.reduce(function(s,m){ return s+m.pieces; },0);
+  var tab = 'overview';
+
+  function shell(){
+    mount.innerHTML =
+      '<div class="adm-head">'+
+        '<div>'+
+          '<nav class="crumbs" style="margin-bottom:10px"><a href="../dashboard/">Dashboard</a>'+I.chev+
+            '<a href="../customers/">Customers</a>'+I.chev+'<span class="current">'+c.name+'</span></nav>'+
+          '<h2>'+c.name+'</h2>'+
+          '<p>'+c.id+' · customer since '+c.since+' · '+c.seats+' logins · rep '+c.rep+'</p>'+
+        '</div>'+
+        '<div class="row" style="gap:10px;align-items:center">'+
+          U.acctPill(c.status)+
+          '<button class="btn btn-outline" id="impersonate">View storefront as them</button>'+
+          '<button class="btn btn-primary" id="save">Save</button>'+
+        '</div>'+
+      '</div>'+
+      '<div class="mini-kpi" style="margin-bottom:20px">'+
+        '<div class="stat"><div class="lab">Spend, 12 months</div><div class="val">'+TBM.usd(spend12)+'</div>'+
+          '<div class="sub">'+liveO.length+' orders all time</div></div>'+
+        '<div class="stat"><div class="lab">Pieces, 12 months</div><div class="val">'+TBM.num(pieces12)+'</div>'+
+          '<div class="sub">'+A.byItem(orders).length+' item numbers</div></div>'+
+        '<div class="stat"><div class="lab">Rate card</div><div class="val" style="font-size:1.125rem;padding-top:6px">'+D.TIERS[c.tier].name+'</div>'+
+          '<div class="sub">'+Object.keys(c.overrides).length+' item overrides on top</div></div>'+
+        '<div class="stat"><div class="lab">Credit used</div><div class="val">'+(c.limit?Math.round(c.used/c.limit*100):0)+'%</div>'+
+          '<div class="sub">'+TBM.usd(c.used)+' of '+TBM.usd(c.limit)+' · '+c.terms+'</div></div>'+
+      '</div>'+
+      '<div class="adm-tabs" id="tabs">'+
+        [['overview','Overview'],['pricing','Rate card'],['users','Logins'],['orders','Orders'],['settings','Account settings']]
+          .map(function(t){ return '<button class="'+(tab===t[0]?'is-active':'')+'" data-t="'+t[0]+'">'+t[1]+'</button>'; }).join('')+
+      '</div>'+
+      '<div id="tabBody"></div>';
+
+    document.getElementById('tabs').addEventListener('click', function(e){
+      var b=e.target.closest('button[data-t]'); if(!b) return;
+      tab=b.dataset.t; shell();
+    });
+    document.getElementById('save').addEventListener('click', function(){ TBM.toast('Account saved'); });
+    document.getElementById('impersonate').addEventListener('click', function(){
+      TBM.toast('Opening the storefront with this account’s rate card applied');
+      setTimeout(function(){ window.open('../../shop.html','_blank'); }, 500);
+    });
+
+    ({overview:tabOverview, pricing:tabPricing, users:tabUsers, orders:tabOrders, settings:tabSettings})[tab]();
+  }
+
+  /* ---------- Overview ---------- */
+  function tabOverview(){
+    document.getElementById('tabBody').innerHTML =
+      '<div class="chart-card" style="margin-bottom:20px">'+
+        '<div class="panel-head"><div><h3>Spend by month</h3>'+
+          '<div class="small muted" style="margin-top:3px">All logins on this account, last 12 months</div></div></div>'+
+        '<div class="chart-body"><div id="coChart" style="min-height:220px"></div></div>'+
+      '</div>'+
+      '<div class="grid g-2" style="align-items:start">'+
+        '<div class="panel"><div class="panel-head"><h3>What they buy</h3>'+
+          '<a class="link-arrow" href="../reports/?company='+c.id+'">Reports <span>'+I.arrow+'</span></a></div>'+
+          '<div class="panel-body" id="items"></div></div>'+
+        '<div class="panel"><div class="panel-head"><h3>Colours they run</h3></div>'+
+          '<div class="panel-body" id="colors"></div></div>'+
+      '</div>'+
+      '<div class="panel" style="margin-top:20px"><div class="panel-head"><h3>Recent orders</h3>'+
+        '<a class="link-arrow" href="../orders/?company='+c.id+'">All '+orders.length+' <span>'+I.arrow+'</span></a></div>'+
+        '<div class="table-wrap"><table class="table adm-table" id="recent"></table></div></div>';
+
+    U.columnChart(document.getElementById('coChart'), months.map(function(m){
+      return { label:m.label, full:m.full, value:m.spend,
+        tip: TBM.usd(m.spend)+'<br><span class="k">'+TBM.num(m.pieces)+' pcs · '+m.orders+' orders</span>' };
+    }), { prefix:'$', alt:'Spend by month for this account' });
+
+    document.getElementById('items').innerHTML = U.barList(A.byItem(orders).slice(0,7).map(function(x){
+      return { label:x.label, mono:x.key, value:x.pieces, display:TBM.num(x.pieces)+' pcs', sub:TBM.usd(x.spend) };
+    }));
+    document.getElementById('colors').innerHTML = U.barList(A.byColor(orders).slice(0,7).map(function(x){
+      return { label:x.label, swatch:B.color(x.key).body, value:x.pieces, display:TBM.num(x.pieces)+' pcs', sub:TBM.usd(x.spend) };
+    }));
+    document.getElementById('recent').innerHTML =
+      '<thead><tr><th>Order</th><th>Placed by</th><th>Date</th><th class="num">Pieces</th><th class="num">Value</th><th>Status</th><th></th></tr></thead><tbody>'+
+      orders.slice(0,8).map(function(o){
+        return '<tr><td class="nw"><a class="lk mono" href="../order/?id='+o.id+'">'+o.id+'</a><div class="small muted">'+o.po+'</div></td>'+
+          '<td class="nw">'+o.user+'</td><td class="nw">'+U.fmtShort(o.date)+'</td>'+
+          '<td class="num">'+TBM.num(A.orderPieces(o))+'</td>'+
+          '<td class="num"><b>'+TBM.usd(A.orderTotal(o))+'</b></td>'+
+          '<td class="nw">'+U.statusPill(o.status)+'</td>'+
+          '<td class="num"><a class="btn btn-outline btn-sm" href="../order/?id='+o.id+'">Open</a></td></tr>';
+      }).join('')+'</tbody>';
+  }
+
+  /* ---------- Rate card ---------- */
+  function tabPricing(){
+    document.getElementById('tabBody').innerHTML =
+      '<div class="adm-split-wide adm-split">'+
+        '<div>'+
+          '<div class="panel" style="margin-bottom:18px">'+
+            '<div class="panel-head"><h3>Contract tier</h3><span class="badge badge-eco">Applies to every login</span></div>'+
+            '<div class="panel-body">'+
+              '<div class="radio-stack">'+
+                ['A','B','C'].map(function(t){
+                  return '<label class="radio-card"><input type="radio" name="tier" value="'+t+'" '+(c.tier===t?'checked':'')+'>'+
+                    '<span><b>'+D.TIERS[t].name+'</b><span class="small muted" style="display:block">'+
+                    ((1-D.TIERS[t].factor)*100).toFixed(0)+'% off the standard card, before quantity breaks</span></span></label>';
+                }).join('')+
+              '</div>'+
+              '<div class="note-box" style="margin-top:16px">'+I.users+
+                '<span>Changing the tier reprices this account’s whole catalog instantly, for all '+c.seats+' logins. Existing open orders keep the price they were placed at.</span></div>'+
+            '</div>'+
+          '</div>'+
+
+          '<div class="panel">'+
+            '<div class="panel-head">'+
+              '<div><h3>Item overrides</h3><div class="small muted" style="margin-top:3px">A negotiated line on top of the tier. Leave blank to use the tier price.</div></div>'+
+              '<div class="row" style="gap:8px">'+
+                '<button class="btn btn-outline btn-sm" id="impRate">Import rate card</button>'+
+                '<button class="btn btn-outline btn-sm" id="expRate">Export</button>'+
+              '</div>'+
+            '</div>'+
+            '<div class="adm-toolbar" style="margin:0;border:0;border-bottom:1px solid var(--line);border-radius:0">'+
+              '<div class="field" style="flex:1"><input class="input" id="pq" type="search" placeholder="Filter items"></div>'+
+              '<label class="check" style="align-items:center"><input type="checkbox" id="onlyOv"><span class="small">Only items with an override</span></label>'+
+            '</div>'+
+            '<div class="table-wrap" style="max-height:620px;overflow-y:auto"><table class="table adm-table" id="rateTbl"></table></div>'+
+          '</div>'+
+        '</div>'+
+
+        '<div style="display:grid;gap:18px">'+
+          '<div class="panel"><div class="panel-head"><h3>What they see</h3></div><div class="panel-body">'+
+            '<p class="small muted">A live preview of one item on this account’s card. Change the tier or an override and this moves with it.</p>'+
+            '<div id="preview" style="margin-top:14px"></div>'+
+          '</div></div>'+
+          '<div class="panel"><div class="panel-head"><h3>Margin check</h3></div><div class="panel-body" id="marginBox"></div></div>'+
+          '<div class="panel"><div class="panel-head"><h3>Rate card history</h3></div><div class="panel-body" style="display:grid;gap:12px">'+
+            [['1 Jan 2026','Moved to '+D.TIERS[c.tier].name,'Maya Castellanos'],
+             ['14 Aug 2025','DS4520 override set to −8%','Jordan Alvarez'],
+             ['2 Feb 2025','Annual review — no change','Jordan Alvarez'],
+             [c.since+'','Account opened on Tier C','System']].map(function(h){
+              return '<div style="display:flex;gap:11px;align-items:flex-start">'+
+                '<span style="width:7px;height:7px;border-radius:50%;background:var(--kraft);flex:none;margin-top:6px"></span>'+
+                '<span><b style="font-size:.8125rem;display:block">'+h[1]+'</b>'+
+                '<span class="small muted">'+h[0]+' · '+h[2]+'</span></span></div>';
+            }).join('')+
+          '</div></div>'+
+        '</div>'+
+      '</div>';
+
+    document.querySelectorAll('input[name=tier]').forEach(function(r){
+      r.addEventListener('change', function(){
+        c.tier=this.value;
+        TBM.toast('Rate card changed to '+D.TIERS[c.tier].name+' — live for all logins');
+        shell();
+      });
+    });
+    document.getElementById('impRate').addEventListener('click', function(){
+      TBM.toast('Opening the rate card importer for '+c.name);
+      setTimeout(function(){ location.href='../import/'; }, 600);
+    });
+    document.getElementById('expRate').addEventListener('click', function(){
+      U.download(c.name.toLowerCase().replace(/\W+/g,'-')+'-rate-card.csv', U.csv(
+        [['Item','Description','MOQ','Override'].concat(D.BREAKS.map(function(b){ return b+'+'; }))].concat(
+          D.PRODUCTS.map(function(p){
+            return [p.sku,p.name,p.moq,(c.overrides[p.sku]||1)].concat(A.rowFor(c,p).map(function(v){ return v.toFixed(2); }));
+          }))
+      ));
+      TBM.toast('Rate card exported');
+    });
+    document.getElementById('pq').addEventListener('input', paintRate);
+    document.getElementById('onlyOv').addEventListener('change', paintRate);
+    paintRate(); paintPreview();
+  }
+
+  function paintRate(){
+    var q = (document.getElementById('pq').value||'').trim().toLowerCase();
+    var only = document.getElementById('onlyOv').checked;
+    var list = D.PRODUCTS.filter(function(p){
+      if (only && !c.overrides[p.sku]) return false;
+      if (q && (p.sku+' '+p.name+' '+p.parentSku).toLowerCase().indexOf(q)<0) return false;
+      return true;
+    });
+    document.getElementById('rateTbl').innerHTML =
+      '<thead><tr><th>Item</th><th>Description</th><th class="num">Override</th>'+
+      D.BREAKS.map(function(b){ return '<th class="num">'+TBM.num(b)+'+</th>'; }).join('')+
+      '<th class="num">Margin</th></tr></thead><tbody>'+
+      list.map(function(p){
+        var row = A.rowFor(c,p);
+        var ov = c.overrides[p.sku];
+        var cost = p.base*0.52;
+        var m = row[2] ? (row[2]-cost)/row[2]*100 : 0;
+        return '<tr'+(ov?' style="background:var(--kraft-100)"':'')+'>'+
+          '<td class="nw"><a class="lk mono" href="../product/?sku='+p.sku+'">'+p.sku+'</a>'+
+            '<div class="sku-parent">'+p.parentSku+'</div></td>'+
+          '<td><span class="trunc" style="max-width:190px">'+p.name+'</span></td>'+
+          '<td class="num"><input class="cell-edit '+(ov?'is-dirty':'')+'" data-ov="'+p.sku+'" value="'+(ov?((1-ov)*100).toFixed(0)+'%':'')+'" placeholder="—"></td>'+
+          row.map(function(v,i){
+            return '<td class="num'+(D.BREAKS[i]<p.moq?' muted':'')+'">'+(D.BREAKS[i]<p.moq?'—':TBM.usd(v))+'</td>';
+          }).join('')+
+          '<td class="num" style="color:'+(m<28?'var(--warn)':'var(--ok)')+'">'+m.toFixed(0)+'%</td></tr>';
+      }).join('')+'</tbody>';
+
+    document.querySelectorAll('[data-ov]').forEach(function(inp){
+      inp.addEventListener('change', function(){
+        var sku=this.dataset.ov, raw=this.value.replace('%','').trim();
+        if (!raw) { delete c.overrides[sku]; }
+        else {
+          var pct = parseFloat(raw);
+          if (isNaN(pct) || pct<0 || pct>60){ TBM.toast('Enter a discount between 0 and 60%.'); paintRate(); return; }
+          c.overrides[sku] = Math.round((1-pct/100)*1000)/1000;
+        }
+        TBM.toast(sku+' override '+(c.overrides[sku]?'set':'removed')+' for '+c.name);
+        paintRate(); paintPreview();
+      });
+    });
+  }
+
+  function paintPreview(){
+    var p = D.byId('ds4520') || D.PRODUCTS[0];
+    var row = A.rowFor(c,p);
+    document.getElementById('preview').innerHTML =
+      '<div style="border:1px solid var(--line);border-radius:12px;overflow:hidden">'+
+        B.figure(p.shape,p.colors[0],{alt:p.name})+
+        '<div style="padding:14px">'+
+          '<div class="sku-cust">'+p.sku+'</div>'+
+          '<b style="font-size:.875rem;display:block;margin-top:4px">'+p.name+'</b>'+
+          '<div class="price-now" style="margin-top:10px"><b style="font-size:1.75rem">'+TBM.usd(row[2])+'</b>'+
+            '<span class="unit">at '+TBM.num(D.BREAKS[2])+'</span></div>'+
+          '<div class="hint">'+D.TIERS[c.tier].name+(c.overrides[p.sku]?' + '+((1-c.overrides[p.sku])*100).toFixed(0)+'% override':'')+'</div>'+
+        '</div>'+
+      '</div>';
+
+    var cost = p.base*0.52;
+    var rows = ['A','B','C'].map(function(t){
+      var f = D.BREAK_FACTOR[2] * D.TIERS[t].factor * (c.overrides[p.sku]||1);
+      var v = p.base*f;
+      return { t:t, v:v, m:(v-cost)/v*100 };
+    });
+    document.getElementById('marginBox').innerHTML =
+      '<p class="small muted" style="margin-bottom:12px">'+p.sku+' at the '+TBM.num(D.BREAKS[2])+' break, cost '+TBM.usd(cost)+'.</p>'+
+      rows.map(function(r){
+        return '<div class="summary-row" style="padding:6px 0"><span class="'+(r.t===c.tier?'':'muted')+'">'+D.TIERS[r.t].name+'</span>'+
+          '<span class="v">'+TBM.usd(r.v)+' <span style="color:'+(r.m<28?'var(--warn)':'var(--ok)')+'">('+r.m.toFixed(0)+'%)</span></span></div>';
+      }).join('')+
+      '<div class="note-box" style="margin-top:14px">'+I.chart+'<span>Policy floor is 28% gross. Anything under it needs sign-off from the owner.</span></div>';
+  }
+
+  /* ---------- Users ---------- */
+  function tabUsers(){
+    document.getElementById('tabBody').innerHTML =
+      '<div class="panel">'+
+        '<div class="panel-head"><h3>'+c.users.length+' logins on this account</h3>'+
+          '<button class="btn btn-outline btn-sm" id="inv">Invite a login</button></div>'+
+        '<div class="table-wrap"><table class="table adm-table" id="uTbl"></table></div>'+
+      '</div>'+
+      '<div class="grid g-2" style="margin-top:20px;align-items:start">'+
+        '<div class="panel"><div class="panel-head"><h3>Who is buying</h3></div><div class="panel-body" id="uSplit"></div></div>'+
+        '<div class="panel"><div class="panel-head"><h3>How this works</h3></div><div class="panel-body">'+
+          '<ul class="check-list">'+
+            '<li><span class="tick">'+I.check+'</span><span class="small">Every login here sees the same rate card. There is no per-user price.</span></li>'+
+            '<li><span class="tick">'+I.check+'</span><span class="small">Every login sees the same order history, whoever placed the order.</span></li>'+
+            '<li><span class="tick">'+I.check+'</span><span class="small">Permission controls what a person can <b>do</b>, never what they are <b>charged</b>.</span></li>'+
+            '<li><span class="tick">'+I.check+'</span><span class="small">Adding a login costs nothing and needs no new account.</span></li>'+
+          '</ul>'+
+        '</div></div>'+
+      '</div>';
+
+    var byUser = {};
+    A.live(orders).forEach(function(o){
+      if (!byUser[o.user]) byUser[o.user]={n:0,pcs:0,spend:0};
+      byUser[o.user].n++; byUser[o.user].pcs+=A.orderPieces(o); byUser[o.user].spend+=A.orderTotal(o);
+    });
+
+    document.getElementById('uTbl').innerHTML =
+      '<thead><tr><th>User</th><th>Job title</th><th>Permission</th><th class="num">Orders</th><th class="num">Pieces</th><th>Last active</th><th></th></tr></thead><tbody>'+
+      c.users.map(function(u){
+        var s = byUser[u.name];
+        return '<tr><td><div class="user-row"><span class="av">'+u.init+'</span>'+
+            '<span><b>'+u.name+'</b><span>'+u.email+'</span></span></div></td>'+
+          '<td class="nw muted">'+u.role+'</td>'+
+          '<td><select class="select" style="height:32px;font-size:.75rem;width:auto">'+
+            ['Admin','Buyer','View only'].map(function(p){ return '<option '+(u.perm===p?'selected':'')+'>'+p+'</option>'; }).join('')+'</select></td>'+
+          '<td class="num">'+(s?s.n:0)+'</td>'+
+          '<td class="num">'+(s?TBM.num(s.pcs):'0')+'</td>'+
+          '<td class="nw muted">'+u.last+'</td>'+
+          '<td class="num"><div class="rowact"><button class="btn btn-outline btn-sm">Reset password</button>'+
+            '<button class="btn btn-ghost btn-sm" style="color:var(--bad)">Disable</button></div></td></tr>';
+      }).join('')+'</tbody>';
+
+    document.getElementById('uSplit').innerHTML = U.barList(
+      Object.keys(byUser).map(function(k){
+        return { label:k, value:byUser[k].spend, display:TBM.usd(byUser[k].spend),
+          sub:byUser[k].n+' orders · '+TBM.num(byUser[k].pcs)+' pcs' };
+      }).sort(function(a,b){ return b.value-a.value; })
+    );
+    document.getElementById('inv').addEventListener('click', function(){
+      TBM.toast('Invitation form — the new login inherits '+D.TIERS[c.tier].name+' automatically');
+    });
+  }
+
+  /* ---------- Orders ---------- */
+  function tabOrders(){
+    document.getElementById('tabBody').innerHTML =
+      '<div class="panel">'+
+        '<div class="panel-head"><h3>'+orders.length+' orders</h3>'+
+          '<button class="btn btn-outline btn-sm" id="expO">Export</button></div>'+
+        '<div class="table-wrap"><table class="table adm-table" id="oTbl"></table></div>'+
+      '</div>';
+    document.getElementById('oTbl').innerHTML =
+      '<thead><tr><th>Order</th><th>PO</th><th>Placed by</th><th>Date</th><th>Ex</th>'+
+      '<th class="num">Lines</th><th class="num">Pieces</th><th class="num">Value</th><th>Status</th><th></th></tr></thead><tbody>'+
+      orders.slice(0,40).map(function(o){
+        return '<tr><td class="nw"><a class="lk mono" href="../order/?id='+o.id+'">'+o.id+'</a></td>'+
+          '<td class="nw muted">'+o.po+'</td><td class="nw">'+o.user+'</td>'+
+          '<td class="nw">'+U.fmtShort(o.date)+'</td><td class="nw">'+o.warehouse+'</td>'+
+          '<td class="num">'+o.lines.length+'</td><td class="num">'+TBM.num(A.orderPieces(o))+'</td>'+
+          '<td class="num"><b>'+TBM.usd(A.orderTotal(o))+'</b></td>'+
+          '<td class="nw">'+U.statusPill(o.status)+'</td>'+
+          '<td class="num"><a class="btn btn-outline btn-sm" href="../order/?id='+o.id+'">Open</a></td></tr>';
+      }).join('')+'</tbody>';
+    document.getElementById('expO').addEventListener('click', function(){
+      U.download(c.id+'-orders.csv', U.csv(
+        [['Order','Date','PO','Placed by','Warehouse','Item','Description','Colour','Qty','Unit','Extended','Status']].concat(
+          orders.reduce(function(acc,o){
+            o.lines.forEach(function(l){
+              var p=D.byId(l.id), unit=p?A.priceFor(c,p,l.qty):0;
+              acc.push([o.id,U.fmtDate(o.date),o.po,o.user,o.warehouse,l.sku,l.name,B.color(l.color).name,l.qty,unit.toFixed(2),(unit*l.qty).toFixed(2),o.status]);
+            });
+            return acc;
+          },[]))
+      ));
+      TBM.toast('Order history exported');
+    });
+  }
+
+  /* ---------- Settings ---------- */
+  function tabSettings(){
+    document.getElementById('tabBody').innerHTML =
+      '<div class="adm-split">'+
+        '<div class="panel"><div class="panel-head"><h3>Account</h3></div><div class="panel-body">'+
+          '<div class="field-row">'+
+            '<div class="field"><label class="label">Legal name</label><input class="input" value="'+c.name+'"></div>'+
+            '<div class="field"><label class="label">Account number</label><input class="input" value="'+c.id+'" disabled></div>'+
+          '</div>'+
+          '<div class="field-row" style="margin-top:16px">'+
+            '<div class="field"><label class="label">City</label><input class="input" value="'+c.city+'"></div>'+
+            '<div class="field"><label class="label">State</label><input class="input" value="'+c.state+'"></div>'+
+          '</div>'+
+          '<div class="field-row" style="margin-top:16px">'+
+            '<div class="field"><label class="label">Payment terms</label>'+
+              '<select class="select">'+['Prepay','Net 15','Net 30','Net 45','Net 60'].map(function(t){ return '<option '+(c.terms===t?'selected':'')+'>'+t+'</option>'; }).join('')+'</select></div>'+
+            '<div class="field"><label class="label">Credit limit</label><input class="input" value="'+c.limit+'"></div>'+
+          '</div>'+
+          '<div class="field-row" style="margin-top:16px">'+
+            '<div class="field"><label class="label">Assigned rep</label><input class="input" value="'+c.rep+'"></div>'+
+            '<div class="field"><label class="label">Status</label>'+
+              '<select class="select" id="stSel">'+['Active','On hold','Pending approval','Closed'].map(function(s){ return '<option '+(c.status===s?'selected':'')+'>'+s+'</option>'; }).join('')+'</select></div>'+
+          '</div>'+
+          '<hr style="margin:24px 0">'+
+          '<h4 style="font-family:var(--f-sans);font-size:.875rem;font-weight:700;margin-bottom:14px">Tax &amp; resale</h4>'+
+          '<div class="summary-row"><span class="muted">Certificate</span><span class="v"><span class="badge '+(c.cert==='Verified'?'badge-ok':'badge-warn')+'">'+c.cert+'</span></span></div>'+
+          '<div class="summary-row"><span class="muted">Expires</span><span class="v">'+c.certExp+'</span></div>'+
+          (c.cert!=='Verified'
+            ? '<div class="note-box" style="margin-top:14px">'+I.shield+'<span>Pricing is withheld from this account while the certificate is not valid. They can still browse and build an order.</span></div>'
+            : '')+
+        '</div></div>'+
+
+        '<div style="display:grid;gap:18px">'+
+          '<div class="panel"><div class="panel-head"><h3>Item number mapping</h3></div><div class="panel-body">'+
+            '<p class="small muted">This account sees the standard TBM item numbers. You can map their own internal codes instead — they then appear on the site, the packing slip and the invoice.</p>'+
+            '<label class="sw" style="margin-top:14px"><input type="checkbox"><span class="track"></span>Use this customer’s own codes</label>'+
+            '<button class="btn btn-outline btn-sm btn-block" style="margin-top:14px">Upload a mapping file</button>'+
+          '</div></div>'+
+          '<div class="panel"><div class="panel-head"><h3>Danger zone</h3></div><div class="panel-body" style="display:grid;gap:10px">'+
+            '<button class="btn btn-outline btn-sm btn-block" id="holdBtn">Put the account on hold</button>'+
+            '<button class="btn btn-ghost btn-sm btn-block" style="color:var(--bad)">Close the account</button>'+
+            '<div class="hint">Putting an account on hold hides pricing and blocks new orders. History stays intact.</div>'+
+          '</div></div>'+
+        '</div>'+
+      '</div>';
+
+    document.getElementById('stSel').addEventListener('change', function(){
+      c.status=this.value; TBM.toast('Status set to '+c.status); shell();
+    });
+    document.getElementById('holdBtn').addEventListener('click', function(){
+      c.status='On hold'; TBM.toast(c.name+' is on hold — pricing hidden, orders blocked'); shell();
+    });
+  }
+
+  shell();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Stock — TBM Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/css/style.css">
+<link rel="stylesheet" href="../../assets/css/admin.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect width='40' height='40' rx='10' fill='%230E2318'/><path d='M12 15h16l1 13.5a1.2 1.2 0 0 1-1.2 1.3H12.2a1.2 1.2 0 0 1-1.2-1.3Z' fill='%23F7F4ED'/><path d='M16 15.5c0-4 8-4 8 0' stroke='%23B9793C' stroke-width='2.1' fill='none' stroke-linecap='round'/></svg>">
+<script src="../../assets/js/bags.js"></script>
+<script src="../../assets/js/data.js"></script>
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/admin-data.js"></script>
+<script src="../../assets/js/admin.js"></script>
+</head>
+<body class="adm-body-root">
+<div id="adm-root"></div>
+
+<script>
+(function(){
+  var U = TBMAdminUI;
+  if (!U.guard()) return;
+  var I = TBM.I, D = TBMData, A = TBMAdmin, B = TBMBags;
+
+  var mount = U.renderShell('inventory', 'Stock', 'On hand by item and warehouse');
+  var f = { q: TBM.qp('sku') || '', wh:'', view:'all' };
+  var dirty = {};
+
+
+  mount.innerHTML =
+    '<div class="adm-head">'+
+      '<div><h2>Stock</h2><p>These numbers are what a signed-in customer sees on the item page. The morning import writes straight into this table; anything you type here overrides it and is logged.</p></div>'+
+      '<div class="row" style="gap:10px">'+
+        '<a class="btn btn-outline" href="../import/">Run an import</a>'+
+        '<button class="btn btn-outline" id="exp">Export</button>'+
+        '<button class="btn btn-primary hide" id="saveBtn">Save 0 changes</button>'+
+      '</div>'+
+    '</div>'+
+    '<div class="mini-kpi" id="kpis" style="margin-bottom:18px"></div>'+
+    '<div class="adm-toolbar">'+
+      '<div class="field" style="flex:1;min-width:200px"><label class="label" for="fq">Search</label>'+
+        '<input class="input" id="fq" type="search" placeholder="Item number, mill reference or name"></div>'+
+      '<div class="field"><label class="label" for="fWh">Warehouse</label><select class="select" id="fWh"></select></div>'+
+      '<div class="field"><label class="label" for="fView">Show</label>'+
+        '<select class="select" id="fView"><option value="all">Everything</option>'+
+        '<option value="low">Under 10 weeks cover</option><option value="out">Out of stock somewhere</option>'+
+        '<option value="deep">Over 6 months cover</option></select></div>'+
+      '<div class="spacer"></div>'+
+      '<button class="btn btn-ghost btn-sm" id="transfer">Transfer between warehouses</button>'+
+    '</div>'+
+    '<div class="panel">'+
+      '<div class="panel-head"><h3 id="count"></h3>'+
+        '<span class="small muted">Click any quantity to correct it. Changes publish when you save.</span></div>'+
+      '<div class="table-wrap"><table class="table adm-table" id="tbl"></table></div>'+
+    '</div>'+
+    '<div id="movePanel" style="margin-top:20px"></div>';
+
+  document.getElementById('fWh').innerHTML = '<option value="">All warehouses</option>'+
+    D.WAREHOUSES.map(function(w){ return '<option value="'+w.code+'">'+w.name+'</option>'; }).join('');
+  document.getElementById('fq').value = f.q;
+
+  function weeks(p){ return A.weeksCover(p); }
+
+  function filtered(){
+    var q = f.q.trim().toLowerCase();
+    return D.PRODUCTS.filter(function(p){
+      if (q && (p.sku+' '+p.parentSku+' '+p.name).toLowerCase().indexOf(q)<0) return false;
+      if (f.view==='low'  && weeks(p) >= 10) return false;
+      if (f.view==='deep' && weeks(p) < 26) return false;
+      if (f.view==='out'  && !D.WAREHOUSES.some(function(w){ return (p.stock[w.code]||0)===0; })) return false;
+      return true;
+    });
+  }
+
+  function paint(){
+    var list = filtered();
+    var total = D.PRODUCTS.reduce(function(s,p){ return s+D.totalStock(p); },0);
+    var value = D.PRODUCTS.reduce(function(s,p){ return s+D.totalStock(p)*p.base*0.52; },0);
+    var lowN = D.PRODUCTS.filter(function(p){ return weeks(p)<10; }).length;
+    var outN = D.PRODUCTS.filter(function(p){ return D.WAREHOUSES.some(function(w){ return (p.stock[w.code]||0)===0; }); }).length;
+
+    document.getElementById('kpis').innerHTML =
+      '<div class="stat"><div class="lab">Units on hand</div><div class="val">'+U.compact(total)+'</div><div class="sub">across '+D.WAREHOUSES.length+' warehouses</div></div>'+
+      '<div class="stat"><div class="lab">Value at cost</div><div class="val">'+TBM.usd(value)+'</div><div class="sub">FOB valuation</div></div>'+
+      '<div class="stat"><div class="lab">Under 10 weeks cover</div><div class="val" style="color:'+(lowN?'var(--warn)':'inherit')+'">'+lowN+'</div><div class="sub">items to reorder</div></div>'+
+      '<div class="stat"><div class="lab">Out somewhere</div><div class="val" style="color:'+(outN?'var(--bad)':'inherit')+'">'+outN+'</div><div class="sub">zero in at least one site</div></div>';
+
+    document.getElementById('count').textContent = list.length+' item'+(list.length===1?'':'s');
+
+    var whs = f.wh ? D.WAREHOUSES.filter(function(w){ return w.code===f.wh; }) : D.WAREHOUSES;
+
+    document.getElementById('tbl').innerHTML =
+      '<thead><tr><th>Item</th><th>Description</th>'+
+      whs.map(function(w){ return '<th class="num">'+w.code+'</th>'; }).join('')+
+      '<th class="num">Total</th><th class="num">Monthly use</th><th>Cover</th><th class="num">On order</th><th></th></tr></thead><tbody>'+
+      list.map(function(p){
+        var cv = weeks(p);
+        return '<tr>'+
+          '<td class="nw"><a class="lk mono" href="../product/?sku='+p.sku+'">'+p.sku+'</a>'+
+            '<div class="sku-parent">'+p.parentSku+'</div></td>'+
+          '<td><span class="trunc" style="max-width:220px">'+p.name+'</span></td>'+
+          whs.map(function(w){
+            var q = p.stock[w.code]||0;
+            return '<td class="num"><input class="cell-edit" data-sku="'+p.sku+'" data-wh="'+w.code+'" value="'+q+'"></td>';
+          }).join('')+
+          '<td class="num"><b>'+TBM.num(D.totalStock(p))+'</b></td>'+
+          '<td class="num muted">'+TBM.num(Math.round(A.monthlyUse(p.sku)))+'</td>'+
+          '<td class="nw"><span class="badge '+(cv<5?'badge-bad':cv<10?'badge-warn':'badge-ok')+'">'+
+            (cv>99?'99+':cv.toFixed(0))+' weeks</span></td>'+
+          '<td class="num muted">'+TBM.num(Math.round(A.monthlyUse(p.sku)*2/500)*500)+'</td>'+
+          '<td class="num"><button class="btn btn-outline btn-sm" data-po="'+p.sku+'">Raise PO</button></td></tr>';
+      }).join('')+'</tbody>';
+
+    document.querySelectorAll('[data-sku][data-wh]').forEach(function(inp){
+      inp.addEventListener('input', function(){
+        var key = this.dataset.sku+'|'+this.dataset.wh;
+        var p = D.byId(this.dataset.sku);
+        var was = p.stock[this.dataset.wh]||0;
+        var now = parseInt(this.value,10);
+        if (isNaN(now) || now===was) delete dirty[key];
+        else dirty[key] = { sku:this.dataset.sku, wh:this.dataset.wh, was:was, now:now };
+        this.classList.toggle('is-dirty', !!dirty[key]);
+        paintSave();
+      });
+    });
+    document.querySelectorAll('[data-po]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var p = D.byId(b.dataset.po);
+        TBM.toast('Purchase order drafted against mill reference '+p.parentSku+' — not '+p.sku);
+      });
+    });
+    paintSave();
+  }
+
+  function paintSave(){
+    var n = Object.keys(dirty).length;
+    var btn = document.getElementById('saveBtn');
+    btn.classList.toggle('hide', !n);
+    btn.textContent = 'Save '+n+' change'+(n===1?'':'s');
+    document.getElementById('movePanel').innerHTML = n
+      ? '<div class="panel"><div class="panel-head"><h3>Pending corrections</h3>'+
+          '<button class="btn btn-ghost btn-sm" id="discard">Discard</button></div>'+
+        '<div class="table-wrap"><table class="table table-compact adm-table"><thead><tr>'+
+          '<th>Item</th><th>Warehouse</th><th class="num">Was</th><th class="num">Now</th><th class="num">Change</th><th>Reason</th></tr></thead><tbody>'+
+          Object.keys(dirty).map(function(k){
+            var d = dirty[k], diff = d.now-d.was;
+            return '<tr><td class="mono">'+d.sku+'</td><td>'+d.wh+'</td>'+
+              '<td class="num muted">'+TBM.num(d.was)+'</td><td class="num"><b>'+TBM.num(d.now)+'</b></td>'+
+              '<td class="num '+(diff>0?'diff-up':'diff-down')+'">'+(diff>0?'+':'')+TBM.num(diff)+'</td>'+
+              '<td><select class="select" style="height:32px;font-size:.75rem;width:auto">'+
+                ['Cycle count','Damage write-off','Receipt not on the sheet','Transfer','Customer return','Other']
+                  .map(function(r){ return '<option>'+r+'</option>'; }).join('')+'</select></td></tr>';
+          }).join('')+'</tbody></table></div></div>'
+      : '';
+    var dc = document.getElementById('discard');
+    if (dc) dc.addEventListener('click', function(){ dirty={}; paint(); });
+  }
+
+  ['fWh','fView'].forEach(function(id){
+    document.getElementById(id).addEventListener('change', function(){
+      f[{fWh:'wh',fView:'view'}[id]] = this.value; paint();
+    });
+  });
+  var t;
+  document.getElementById('fq').addEventListener('input', function(e){
+    clearTimeout(t); t=setTimeout(function(){ f.q=e.target.value; paint(); },200);
+  });
+  document.getElementById('saveBtn').addEventListener('click', function(){
+    var n = Object.keys(dirty).length;
+    Object.keys(dirty).forEach(function(k){
+      var d = dirty[k]; var p = D.byId(d.sku); p.stock[d.wh] = d.now;
+    });
+    dirty = {};
+    TBM.toast(n+' stock correction'+(n===1?'':'s')+' applied and published to the storefront');
+    paint();
+  });
+  document.getElementById('transfer').addEventListener('click', function(){
+    TBM.toast('Transfer form — moves stock between warehouses without touching the customer’s order');
+  });
+  document.getElementById('exp').addEventListener('click', function(){
+    U.download('tbm-stock.csv', U.csv(
+      [['Parent SKU','Item number','Description'].concat(D.WAREHOUSES.map(function(w){return w.code;})).concat(['Total','Monthly use','Weeks cover'])].concat(
+        filtered().map(function(p){
+          return [p.parentSku,p.sku,p.name]
+            .concat(D.WAREHOUSES.map(function(w){ return p.stock[w.code]||0; }))
+            .concat([D.totalStock(p), Math.round(A.monthlyUse(p.sku)), weeks(p).toFixed(1)]);
+        }))
+    ));
+    TBM.toast('Stock exported');
+  });
+
+  paint();
+})();
+</script>
+</body>
+</html>
