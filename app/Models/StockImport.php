@@ -43,14 +43,20 @@ class StockImport extends Model
         'rolled_back_at',
     ];
 
-    protected $casts = [
-        'type' => ImportType::class,
-        'status' => ImportStatus::class,
-        'column_map' => 'array',
-        'was_scheduled' => 'boolean',
-        'applied_at' => 'datetime',
-        'rolled_back_at' => 'datetime',
-    ];
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'type' => ImportType::class,
+            'status' => ImportStatus::class,
+            'column_map' => 'array',
+            'was_scheduled' => 'boolean',
+            'applied_at' => 'datetime',
+            'rolled_back_at' => 'datetime',
+        ];
+    }
 
     /* ---------------------------------------------------------- Relations */
 

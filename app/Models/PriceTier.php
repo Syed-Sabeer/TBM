@@ -12,10 +12,16 @@ class PriceTier extends Model
 
     protected $fillable = ['code', 'name', 'description', 'factor', 'is_default', 'position'];
 
-    protected $casts = [
-        'factor' => 'float',
-        'is_default' => 'boolean',
-    ];
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'factor' => 'float',
+            'is_default' => 'boolean',
+        ];
+    }
 
     public function companies(): HasMany
     {

@@ -14,15 +14,27 @@ use App\Policies\OrderPolicy;
 use App\Policies\ProductPolicy;
 use App\Policies\StockImportPolicy;
 use App\Policies\UserPolicy;
-use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\ServiceProvider;
 
+/**
+ * Authorisation.
+ *
+ * Laravel discovers `App\Policies\XPolicy` for `App\Models\X` on its own, and
+ * every policy here follows that convention — but the mapping is written out
+ * anyway. A list of which models are governed at all is worth having in one
+ * readable place, and it means adding a model without a policy is a visible
+ * omission rather than a silent one.
+ *
+ * Laravel 11 dropped the framework's AuthServiceProvider base class, so this
+ * is a plain service provider registered in bootstrap/providers.php.
+ */
 class AuthServiceProvider extends ServiceProvider
 {
     /**
      * @var array<class-string, class-string>
      */
-    protected $policies = [
+    private array $policies = [
         Address::class => AddressPolicy::class,
         Company::class => CompanyPolicy::class,
         Order::class => OrderPolicy::class,
@@ -33,6 +45,10 @@ class AuthServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        foreach ($this->policies as $model => $policy) {
+            Gate::policy($model, $policy);
+        }
+
         /*
          | The owner can do anything. Returning null rather than false for
          | everyone else lets the policies have their say — a before callback

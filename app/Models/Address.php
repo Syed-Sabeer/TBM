@@ -31,10 +31,16 @@ class Address extends Model
         'notes',
     ];
 
-    protected $casts = [
-        'is_default' => 'boolean',
-        'is_residential' => 'boolean',
-    ];
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'is_default' => 'boolean',
+            'is_residential' => 'boolean',
+        ];
+    }
 
     public function company(): BelongsTo
     {

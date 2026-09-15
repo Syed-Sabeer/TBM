@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\ActivityLog;
-use App\Providers\RouteServiceProvider;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -32,7 +31,7 @@ class LoginController extends Controller
 
         ActivityLog::record('Signed in', $user->email, $user);
 
-        return redirect()->intended(RouteServiceProvider::homeFor($user));
+        return redirect()->intended($user->homeUrl());
     }
 
     public function destroy(Request $request): RedirectResponse

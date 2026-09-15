@@ -44,12 +44,18 @@ class Company extends Model
         'notes',
     ];
 
-    protected $casts = [
-        'status' => AccountStatus::class,
-        'credit_limit' => 'decimal:2',
-        'credit_used' => 'decimal:2',
-        'certificate_expires_at' => 'date',
-    ];
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'status' => AccountStatus::class,
+            'credit_limit' => 'decimal:2',
+            'credit_used' => 'decimal:2',
+            'certificate_expires_at' => 'date',
+        ];
+    }
 
     /* ---------------------------------------------------------- Relations */
 

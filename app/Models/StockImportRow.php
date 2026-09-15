@@ -36,12 +36,18 @@ class StockImportRow extends Model
         'raw',
     ];
 
-    protected $casts = [
-        'status' => ImportRowStatus::class,
-        'raw' => 'array',
-        'ready_on' => 'date',
-        'cost' => 'decimal:4',
-    ];
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'status' => ImportRowStatus::class,
+            'raw' => 'array',
+            'ready_on' => 'date',
+            'cost' => 'decimal:4',
+        ];
+    }
 
     public function import(): BelongsTo
     {

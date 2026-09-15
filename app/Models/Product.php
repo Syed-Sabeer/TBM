@@ -44,13 +44,19 @@ class Product extends Model
         'position',
     ];
 
-    protected $casts = [
-        'sizes' => 'array',
-        'flags' => 'array',
-        'base_price' => 'decimal:4',
-        'cost_price' => 'decimal:4',
-        'is_published' => 'boolean',
-    ];
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'sizes' => 'array',
+            'flags' => 'array',
+            'base_price' => 'decimal:4',
+            'cost_price' => 'decimal:4',
+            'is_published' => 'boolean',
+        ];
+    }
 
     /*
      | The mill reference must never be serialised into a customer-facing

@@ -24,9 +24,15 @@ class PriceOverride extends Model
         'note',
     ];
 
-    protected $casts = [
-        'factor' => 'decimal:4',
-    ];
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'factor' => 'decimal:4',
+        ];
+    }
 
     public function company(): BelongsTo
     {

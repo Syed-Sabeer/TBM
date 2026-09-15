@@ -30,11 +30,17 @@ class Warehouse extends Model
         'position',
     ];
 
-    protected $casts = [
-        'has_decoration' => 'boolean',
-        'is_active' => 'boolean',
-        'include_in_storefront' => 'boolean',
-    ];
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'has_decoration' => 'boolean',
+            'is_active' => 'boolean',
+            'include_in_storefront' => 'boolean',
+        ];
+    }
 
     /* ---------------------------------------------------------- Relations */
 

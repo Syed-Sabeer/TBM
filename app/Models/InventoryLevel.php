@@ -26,10 +26,16 @@ class InventoryLevel extends Model
         'synced_at',
     ];
 
-    protected $casts = [
-        'next_intake_on' => 'date',
-        'synced_at' => 'datetime',
-    ];
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'next_intake_on' => 'date',
+            'synced_at' => 'datetime',
+        ];
+    }
 
     public function product(): BelongsTo
     {

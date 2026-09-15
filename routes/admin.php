@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Route;
 | Back office
 |--------------------------------------------------------------------------
 |
-| Prefixed with /admin and named admin.* by the RouteServiceProvider. The
+| Prefixed with /admin and named admin.* by bootstrap/app.php. The
 | whole file sits behind `staff`, and the routes that change money, stock or
 | an account's standing carry their own permission on top — so a Customer Care
 | login can read everything here and rewrite nothing it should not.

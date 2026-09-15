@@ -4,7 +4,7 @@ A wholesale (B2B) bag supply platform: public catalogue, per-account pricing beh
 ordering on account terms with no payment merchant, and a back office for orders, accounts,
 stock and the morning mill sheet.
 
-Laravel 10 · PHP 8.1+ · Spatie laravel-permission v6 · Blade · no build step.
+Laravel 12 · PHP 8.2+ · Spatie laravel-permission v6 · Blade · no build step, no npm.
 
 ---
 
@@ -128,6 +128,9 @@ sends a truncated file and an unattended apply would publish an empty warehouse.
 ## Layout
 
 ```
+bootstrap/
+  app.php             routing, middleware and exception handling — the whole skeleton
+  providers.php       the application's own service providers
 app/
   Enums/              AccountStatus, OrderStatus, ImportStatus, roles — each with label()
   Models/             17 Eloquent models
@@ -140,6 +143,7 @@ app/
     Imports/          Stage / preview / apply for the mill sheet
     Reporting/        By month, item, colour, category, user, warehouse
     Rendering/        BagRenderer — SVG product illustrations, drawn in code
+  Providers/          App (services, Blade, rate limits), Auth (gates), View (composers)
   Support/            Money and Icons helpers
 database/
   data/               catalogue.php and accounts.php — seed data as plain arrays
@@ -148,7 +152,25 @@ resources/views/
   layouts/            storefront · account · admin · auth
   components/         price, product-card, column-chart, bar-list, stat, icon …
   documents/          invoice · packing slip (pick list lives under admin/)
+html/                 the original static prototype — reference only, not served
 ```
+
+`html/` holds the HTML/CSS/JS prototype the design was settled in. Nothing in the Laravel
+application reads from it and nothing in it is served; it is kept because it is the visual
+reference the Blade templates reproduce. All work happens in the Laravel tree.
+
+### Where the kernels went
+
+Laravel 11 replaced `app/Http/Kernel.php`, `app/Console/Kernel.php` and
+`app/Exceptions/Handler.php` with a single `bootstrap/app.php`. Everything those three held is
+there now: the route files, the middleware stack and its aliases, and the rule that turns an
+`OrderException`, `ImportException` or `InsufficientStockException` into a readable message on
+the page the user was already on rather than a 500.
+
+The scheduled mill-sheet import moved to `routes/console.php`. The two authentication
+redirects — staff to the back-office door, customers to the storefront one — are set in
+`AppServiceProvider` through the framework's own `Authenticate` and `RedirectIfAuthenticated`
+middleware, which replaced the skeleton's copies.
 
 ### Illustrations
 
@@ -180,7 +202,7 @@ customer can reach.
 php artisan test
 ```
 
-Four suites, covering the rules above rather than the framework:
+Five suites, covering the rules above rather than the framework:
 
 | | |
 |---|---|

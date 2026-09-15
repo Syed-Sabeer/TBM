@@ -40,12 +40,18 @@ class User extends Authenticatable
         'remember_token',
     ];
 
-    protected $casts = [
-        'email_verified_at' => 'datetime',
-        'last_seen_at' => 'datetime',
-        'password' => 'hashed',
-        'is_active' => 'boolean',
-    ];
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'last_seen_at' => 'datetime',
+            'password' => 'hashed',
+            'is_active' => 'boolean',
+        ];
+    }
 
     /* ---------------------------------------------------------- Relations */
 
@@ -91,6 +97,18 @@ class User extends Authenticatable
     public function isCustomer(): bool
     {
         return $this->company_id !== null;
+    }
+
+    /**
+     * Where this login belongs after signing in.
+     *
+     * It lives on the user rather than in a route provider because it is a
+     * fact about the person, not about routing — and Laravel 11 removed the
+     * RouteServiceProvider that used to hold it.
+     */
+    public function homeUrl(): string
+    {
+        return $this->isStaff() ? '/admin' : '/account';
     }
 
     /**

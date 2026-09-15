@@ -1,46 +1,93 @@
 <?php
 
-use Illuminate\Support\Facades\Facade;
-use Illuminate\Support\ServiceProvider;
-
 return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Application Name
+    |--------------------------------------------------------------------------
+    */
 
     'name' => env('APP_NAME', 'TBM'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Application Environment
+    |--------------------------------------------------------------------------
+    */
+
     'env' => env('APP_ENV', 'production'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Application Debug Mode
+    |--------------------------------------------------------------------------
+    */
 
     'debug' => (bool) env('APP_DEBUG', false),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Application URL
+    |--------------------------------------------------------------------------
+    */
+
     'url' => env('APP_URL', 'http://localhost'),
 
-    'asset_url' => env('ASSET_URL'),
+    /*
+    |--------------------------------------------------------------------------
+    | Application Timezone
+    |--------------------------------------------------------------------------
+    |
+    | The warehouse is in Los Angeles and the back office works its hours, so
+    | "today" means a Pacific day. Order timestamps, the morning import window
+    | and every report boundary follow from this.
+    |
+    */
 
-    'timezone' => env('APP_TIMEZONE', 'UTC'),
+    'timezone' => env('APP_TIMEZONE', 'America/Los_Angeles'),
 
-    'locale' => 'en',
+    /*
+    |--------------------------------------------------------------------------
+    | Application Locale Configuration
+    |--------------------------------------------------------------------------
+    */
 
-    'fallback_locale' => 'en',
+    'locale' => env('APP_LOCALE', 'en'),
 
-    'faker_locale' => 'en_US',
+    'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
 
-    'key' => env('APP_KEY'),
+    'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Encryption Key
+    |--------------------------------------------------------------------------
+    */
 
     'cipher' => 'AES-256-CBC',
 
-    'maintenance' => [
-        'driver' => 'file',
+    'key' => env('APP_KEY'),
+
+    'previous_keys' => [
+        ...array_filter(
+            explode(',', (string) env('APP_PREVIOUS_KEYS', ''))
+        ),
     ],
 
-    'providers' => ServiceProvider::defaultProviders()->merge([
-        App\Providers\AppServiceProvider::class,
-        App\Providers\AuthServiceProvider::class,
-        App\Providers\EventServiceProvider::class,
-        App\Providers\RouteServiceProvider::class,
-        App\Providers\ViewServiceProvider::class,
-    ])->toArray(),
+    /*
+    |--------------------------------------------------------------------------
+    | Maintenance Mode Driver
+    |--------------------------------------------------------------------------
+    |
+    | The "cache" driver lets several servers share one maintenance state.
+    | On a single Laragon or shared host the file driver is correct.
+    |
+    */
 
-    'aliases' => Facade::defaultAliases()->merge([
-        //
-    ])->toArray(),
+    'maintenance' => [
+        'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
+        'store' => env('APP_MAINTENANCE_STORE', 'database'),
+    ],
 
 ];

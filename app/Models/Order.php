@@ -48,20 +48,26 @@ class Order extends Model
         'delivered_at',
     ];
 
-    protected $casts = [
-        'status' => OrderStatus::class,
-        'ship_to' => 'array',
-        'in_hands_on' => 'date',
-        'placed_at' => 'datetime',
-        'confirmed_at' => 'datetime',
-        'shipped_at' => 'datetime',
-        'delivered_at' => 'datetime',
-        'merchandise_total' => 'decimal:2',
-        'decoration_total' => 'decimal:2',
-        'freight_total' => 'decimal:2',
-        'tax_total' => 'decimal:2',
-        'grand_total' => 'decimal:2',
-    ];
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'status' => OrderStatus::class,
+            'ship_to' => 'array',
+            'in_hands_on' => 'date',
+            'placed_at' => 'datetime',
+            'confirmed_at' => 'datetime',
+            'shipped_at' => 'datetime',
+            'delivered_at' => 'datetime',
+            'merchandise_total' => 'decimal:2',
+            'decoration_total' => 'decimal:2',
+            'freight_total' => 'decimal:2',
+            'tax_total' => 'decimal:2',
+            'grand_total' => 'decimal:2',
+        ];
+    }
 
     /* ---------------------------------------------------------- Relations */
 

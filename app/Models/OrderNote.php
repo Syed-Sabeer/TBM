@@ -23,9 +23,15 @@ class OrderNote extends Model
         'is_internal',
     ];
 
-    protected $casts = [
-        'is_internal' => 'boolean',
-    ];
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'is_internal' => 'boolean',
+        ];
+    }
 
     public function order(): BelongsTo
     {

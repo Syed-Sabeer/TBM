@@ -34,14 +34,20 @@ class OrderItem extends Model
         'line_total',
     ];
 
-    protected $casts = [
-        'unit_price' => 'decimal:4',
-        'unit_cost' => 'decimal:4',
-        'line_total' => 'decimal:2',
-    ];
-
     /** As with Product, the mill reference does not leak into serialisation. */
     protected $hidden = ['parent_sku', 'unit_cost'];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'unit_price' => 'decimal:4',
+            'unit_cost' => 'decimal:4',
+            'line_total' => 'decimal:2',
+        ];
+    }
 
     public function order(): BelongsTo
     {
