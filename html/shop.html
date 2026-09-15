@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catalog — TBM Wholesale Bags</title>
+<meta name="description" content="Browse the full TBM wholesale catalog: cotton, canvas, organic, recycled, jute, denim, non-woven and drawstring bags stocked in the US.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect width='40' height='40' rx='10' fill='%231C3D2E'/><path d='M12 15h16l1 13.5a1.2 1.2 0 0 1-1.2 1.3H12.2a1.2 1.2 0 0 1-1.2-1.3Z' fill='%23F7F4ED'/><path d='M16 15.5c0-4 8-4 8 0' stroke='%23B9793C' stroke-width='2.1' fill='none' stroke-linecap='round'/></svg>">
+<script src="assets/js/bags.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+</head>
+<body>
+
+<div id="site-header"></div>
+<script>TBM.renderHeader('bags')</script>
+
+<div class="page-head">
+  <div class="container">
+    <nav class="crumbs" id="crumbs"></nav>
+    <div class="row-between" style="align-items:flex-end;flex-wrap:wrap">
+      <div>
+        <h1 class="display-2" id="pageTitle">Full catalog</h1>
+        <p class="lede" id="pageBlurb" style="margin:12px 0 0">Every item is held blank in US stock. Decoration is quoted separately.</p>
+      </div>
+      <div class="panel" id="gateNote" style="padding:14px 18px;max-width:380px"></div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="shop-layout">
+
+    <!-- ============ FILTERS ============ -->
+    <aside class="filters">
+      <div class="row-between" style="margin-bottom:14px">
+        <span class="label" style="margin:0">Refine</span>
+        <button class="link-arrow" id="clearAll" style="font-size:.75rem">Clear all</button>
+      </div>
+
+      <div class="filter-card">
+        <details class="filter-group" open>
+          <summary>Search <span data-ico="chevD"></span></summary>
+          <div class="filter-body">
+            <input class="input" type="search" id="fQ" placeholder="Item number or name">
+          </div>
+        </details>
+
+        <details class="filter-group" open>
+          <summary>Category <span data-ico="chevD"></span></summary>
+          <div class="filter-body" id="fCat"></div>
+        </details>
+
+        <details class="filter-group" open>
+          <summary>Material <span data-ico="chevD"></span></summary>
+          <div class="filter-body" id="fMat"></div>
+        </details>
+
+        <details class="filter-group" open>
+          <summary>Colour <span data-ico="chevD"></span></summary>
+          <div class="filter-body"><div class="color-filter" id="fCol"></div></div>
+        </details>
+
+        <details class="filter-group" open>
+          <summary>Programme <span data-ico="chevD"></span></summary>
+          <div class="filter-body" id="fFlag"></div>
+        </details>
+
+        <details class="filter-group" open>
+          <summary>Ready to ship from <span data-ico="chevD"></span></summary>
+          <div class="filter-body" id="fWh"></div>
+        </details>
+
+        <details class="filter-group">
+          <summary>Minimum order <span data-ico="chevD"></span></summary>
+          <div class="filter-body" id="fMoq"></div>
+        </details>
+      </div>
+
+      <div class="panel" style="margin-top:18px;padding:20px;background:var(--forest);color:#CFDCD2;border:0">
+        <div style="color:#D9AE7C;margin-bottom:12px" data-ico="phone"></div>
+        <h4 style="font-family:var(--f-sans);font-size:.9375rem;color:#fff;margin-bottom:6px">Can't find the build?</h4>
+        <p class="small" style="color:#A9BBAD;margin-bottom:14px">We run custom bodies from 3,000 pieces — your fabric weight, size, handle drop and lining.</p>
+        <a class="btn btn-light btn-sm btn-block" href="register.html">Request a custom quote</a>
+      </div>
+    </aside>
+
+    <!-- ============ RESULTS ============ -->
+    <main>
+      <div class="shop-toolbar">
+        <div class="muted small" id="count"></div>
+        <div class="row">
+          <label class="label" style="margin:0">Sort</label>
+          <select class="select" id="sort" style="height:40px;width:auto;font-size:.8125rem">
+            <option value="featured">Featured</option>
+            <option value="new">Newest</option>
+            <option value="stock">Most in stock</option>
+            <option value="moq">Lowest minimum</option>
+            <option value="az">Name A–Z</option>
+            <option value="price">Price, low to high</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="chips" id="chips"></div>
+      <div class="prod-grid" id="grid"></div>
+      <div id="emptyState"></div>
+      <div class="pagination" id="pager"></div>
+    </main>
+  </div>
+</div>
+
+<div id="site-footer"></div>
+<script>TBM.renderFooter()</script>
+
+<script>
+(function(){
+  var I = TBM.I, D = TBMData, B = TBMBags;
+  document.querySelectorAll('[data-ico]').forEach(function(el){ el.innerHTML = I[el.dataset.ico] || ''; });
+
+  var PER = 12;
+
+  /* ---- State from URL ---- */
+  var state = {
+    q:   TBM.qp('q') || '',
+    cat: (TBM.qp('cat')  || '').split(',').filter(Boolean),
+    mat: [],
+    col: [],
+    flag:(TBM.qp('flag') || '').split(',').filter(Boolean),
+    wh:  (TBM.qp('stock')|| '').split(',').filter(Boolean),
+    moq: [],
+    sort:'featured',
+    page:1
+  };
+
+  /* ---- Facet sources ---- */
+  var MATERIALS = [];
+  D.PRODUCTS.forEach(function(p){ if (MATERIALS.indexOf(p.material)<0) MATERIALS.push(p.material); });
+  MATERIALS.sort();
+
+  var COLORS = [];
+  D.PRODUCTS.forEach(function(p){ p.colors.forEach(function(c){ if (COLORS.indexOf(c)<0) COLORS.push(c); }); });
+
+  var FLAGS = [['bestseller','Bestseller'],['new','New'],['eco','Eco / certified'],['gots','GOTS organic'],['grs','GRS recycled'],['value','Value priced'],['premium','Premium build']];
+  var MOQS  = [['0-100','100 pieces or fewer'],['101-250','101 – 250'],['251-500','251 – 500'],['501+','501 and above']];
+
+  /* ---- Build filter UI ---- */
+  function checkRow(group, value, label, count){
+    return '<label class="check"><input type="checkbox" data-g="'+group+'" value="'+value+'">'+
+      '<span>'+label+'</span><span class="n">'+count+'</span></label>';
+  }
+  document.getElementById('fCat').innerHTML = D.CATEGORIES.map(function(c){
+    return checkRow('cat', c.slug, c.name, D.byCat(c.slug).length);
+  }).join('');
+  document.getElementById('fMat').innerHTML = MATERIALS.map(function(m){
+    return checkRow('mat', m, m, D.PRODUCTS.filter(function(p){return p.material===m;}).length);
+  }).join('');
+  document.getElementById('fFlag').innerHTML = FLAGS.map(function(f){
+    return checkRow('flag', f[0], f[1], D.PRODUCTS.filter(function(p){return p.flags.indexOf(f[0])>-1;}).length);
+  }).join('');
+  document.getElementById('fWh').innerHTML = D.WAREHOUSES.map(function(w){
+    return checkRow('wh', w.code, w.name, D.PRODUCTS.filter(function(p){return (p.stock[w.code]||0)>0;}).length);
+  }).join('');
+  document.getElementById('fMoq').innerHTML = MOQS.map(function(m){
+    return checkRow('moq', m[0], m[1], D.PRODUCTS.filter(function(p){return moqMatch(p,m[0]);}).length);
+  }).join('');
+  document.getElementById('fCol').innerHTML = COLORS.map(function(k){
+    var c = B.color(k);
+    return '<label title="'+c.name+'"><input type="checkbox" data-g="col" value="'+k+'">'+
+      '<span class="swatch" style="background:'+c.body+'"></span></label>';
+  }).join('');
+
+  function moqMatch(p, band){
+    if (band==='0-100')   return p.moq<=100;
+    if (band==='101-250') return p.moq>100 && p.moq<=250;
+    if (band==='251-500') return p.moq>250 && p.moq<=500;
+    return p.moq>500;
+  }
+
+  /* ---- Sync checkboxes from state ---- */
+  function syncInputs(){
+    document.querySelectorAll('.filter-card input[type=checkbox]').forEach(function(cb){
+      cb.checked = (state[cb.dataset.g]||[]).indexOf(cb.value) > -1;
+    });
+    document.getElementById('fQ').value = state.q;
+    document.getElementById('sort').value = state.sort;
+  }
+
+  /* ---- Filtering ---- */
+  function results(){
+    var q = state.q.trim().toLowerCase();
+    var list = D.PRODUCTS.filter(function(p){
+      if (q && (p.name+' '+p.sku+' '+p.material).toLowerCase().indexOf(q)<0) return false;
+      if (state.cat.length  && state.cat.indexOf(p.cat)<0) return false;
+      if (state.mat.length  && state.mat.indexOf(p.material)<0) return false;
+      if (state.flag.length && !state.flag.every(function(f){ return p.flags.indexOf(f)>-1; })) return false;
+      if (state.col.length  && !state.col.some(function(c){ return p.colors.indexOf(c)>-1; })) return false;
+      if (state.wh.length   && !state.wh.some(function(w){ return (p.stock[w]||0)>0; })) return false;
+      if (state.moq.length  && !state.moq.some(function(m){ return moqMatch(p,m); })) return false;
+      return true;
+    });
+
+    var s = state.sort, t = TBM.tier();
+    list.sort(function(a,b){
+      if (s==='az')    return a.name.localeCompare(b.name);
+      if (s==='moq')   return a.moq-b.moq;
+      if (s==='new')   return (b.isNew?1:0)-(a.isNew?1:0) || a.name.localeCompare(b.name);
+      if (s==='stock') return D.totalStock(b)-D.totalStock(a);
+      if (s==='price') return D.priceAt(a,a.moq,t)-D.priceAt(b,b.moq,t);
+      var rank = function(p){ return (p.flags.indexOf('bestseller')>-1?0:1)*10 + (p.isNew?0:1); };
+      return rank(a)-rank(b);
+    });
+    return list;
+  }
+
+  /* ---- Chips ---- */
+  function chipHTML(g, v, label){
+    return '<span class="chip">'+label+'<button type="button" data-g="'+g+'" data-v="'+v+'" aria-label="Remove">'+I.x+'</button></span>';
+  }
+  function paintChips(){
+    var out = '';
+    if (state.q) out += chipHTML('q', '', '“'+state.q+'”');
+    state.cat.forEach(function(v){ var c=D.catBySlug(v); out += chipHTML('cat',v,c?c.name:v); });
+    state.mat.forEach(function(v){ out += chipHTML('mat',v,v); });
+    state.col.forEach(function(v){ out += chipHTML('col',v,B.color(v).name); });
+    state.flag.forEach(function(v){ var f=FLAGS.filter(function(x){return x[0]===v;})[0]; out += chipHTML('flag',v,f?f[1]:v); });
+    state.wh.forEach(function(v){ var w=D.WAREHOUSES.filter(function(x){return x.code===v;})[0]; out += chipHTML('wh',v,'Ships from '+(w?w.name:v)); });
+    state.moq.forEach(function(v){ var m=MOQS.filter(function(x){return x[0]===v;})[0]; out += chipHTML('moq',v,'MOQ '+(m?m[1]:v)); });
+    var el = document.getElementById('chips');
+    el.innerHTML = out;
+    el.classList.toggle('hide', !out);
+  }
+
+  /* ---- Header / crumbs ---- */
+  function paintHead(){
+    var title = 'Full catalog', blurb = 'Every item is held blank in US stock. Decoration is quoted separately.';
+    if (state.cat.length===1){
+      var c = D.catBySlug(state.cat[0]);
+      if (c){ title = c.name; blurb = c.blurb + ' Held blank in US stock and ready to decorate.'; }
+    } else if (state.flag.length===1){
+      var f = FLAGS.filter(function(x){return x[0]===state.flag[0];})[0];
+      if (f){ title = f[1]; blurb = 'Filtered to the ' + f[1].toLowerCase() + ' programme.'; }
+    }
+    document.getElementById('pageTitle').textContent = title;
+    document.getElementById('pageBlurb').textContent = blurb;
+    document.getElementById('crumbs').innerHTML =
+      '<a href="index.html">Home</a>'+I.chev+'<a href="shop.html">Catalog</a>'+
+      (title!=='Full catalog' ? I.chev+'<span class="current">'+title+'</span>' : '');
+  }
+
+  /* ---- Gate note ---- */
+  (function(){
+    var el = document.getElementById('gateNote');
+    if (TBM.isIn()){
+      var a = TBM.account();
+      el.innerHTML = '<div class="row" style="gap:12px"><span style="color:var(--forest)">'+I.tag+'</span>'+
+        '<div><b style="font-size:.875rem">Your pricing is live</b><div class="small muted">'+a.company+' · '+D.TIERS[a.tier].name+'. Quantity breaks apply automatically.</div></div></div>';
+    } else {
+      el.innerHTML = '<div class="row" style="gap:12px"><span style="color:var(--forest)">'+I.lock+'</span>'+
+        '<div><b style="font-size:.875rem">Pricing is hidden</b><div class="small muted"><a href="login.html" style="color:var(--forest);font-weight:600;text-decoration:underline">Log in</a> or <a href="register.html" style="color:var(--forest);font-weight:600;text-decoration:underline">open an account</a> to see your rates.</div></div></div>';
+    }
+  })();
+
+  /* ---- Render ---- */
+  function paint(){
+    var list = results();
+    var pages = Math.max(1, Math.ceil(list.length/PER));
+    if (state.page > pages) state.page = pages;
+    var slice = list.slice((state.page-1)*PER, state.page*PER);
+
+    document.getElementById('count').innerHTML = list.length
+      ? '<b style="color:var(--ink)">'+list.length+'</b> item'+(list.length===1?'':'s')+
+        (list.length>PER ? ' · showing '+((state.page-1)*PER+1)+'–'+Math.min(state.page*PER,list.length) : '')
+      : 'No items';
+
+    document.getElementById('grid').innerHTML = slice.map(TBM.productCard).join('');
+    TBM.wireCardSwatches();
+
+    document.getElementById('emptyState').innerHTML = list.length ? '' :
+      '<div class="empty"><div class="ico">'+I.search+'</div>'+
+      '<h3 class="h3" style="margin-bottom:8px">Nothing matches those filters</h3>'+
+      '<p class="muted small" style="max-width:42ch;margin:0 auto 18px">Try clearing a colour or a warehouse — or tell us what you need and we will quote a custom build.</p>'+
+      '<button class="btn btn-outline" id="emptyClear">Clear all filters</button></div>';
+    var ec = document.getElementById('emptyClear');
+    if (ec) ec.addEventListener('click', clearAll);
+
+    /* pagination */
+    var pg = '';
+    if (pages>1){
+      pg += '<a href="#" data-p="'+Math.max(1,state.page-1)+'">'+I.chev.replace('m9 6 6 6-6 6','m15 6-6 6 6 6')+'</a>';
+      for (var i=1;i<=pages;i++){
+        if (i===1 || i===pages || Math.abs(i-state.page)<=1){
+          pg += state.page===i ? '<span class="is-current">'+i+'</span>' : '<a href="#" data-p="'+i+'">'+i+'</a>';
+        } else if (Math.abs(i-state.page)===2){ pg += '<span class="dots">…</span>'; }
+      }
+      pg += '<a href="#" data-p="'+Math.min(pages,state.page+1)+'">'+I.chev+'</a>';
+    }
+    document.getElementById('pager').innerHTML = pg;
+
+    paintChips(); paintHead(); syncInputs(); pushURL();
+  }
+
+  function pushURL(){
+    var p = new URLSearchParams();
+    if (state.q) p.set('q', state.q);
+    if (state.cat.length)  p.set('cat',  state.cat.join(','));
+    if (state.flag.length) p.set('flag', state.flag.join(','));
+    if (state.wh.length)   p.set('stock',state.wh.join(','));
+    var s = p.toString();
+    history.replaceState(null,'', location.pathname + (s ? '?'+s : ''));
+  }
+
+  function clearAll(){
+    state.q=''; state.cat=[]; state.mat=[]; state.col=[]; state.flag=[]; state.wh=[]; state.moq=[]; state.page=1;
+    paint();
+  }
+
+  /* ---- Events ---- */
+  document.querySelector('.filter-card').addEventListener('change', function(e){
+    var cb = e.target.closest('input[type=checkbox]'); if (!cb) return;
+    var arr = state[cb.dataset.g];
+    var i = arr.indexOf(cb.value);
+    if (cb.checked && i<0) arr.push(cb.value);
+    if (!cb.checked && i>-1) arr.splice(i,1);
+    state.page = 1; paint();
+  });
+  var qTimer;
+  document.getElementById('fQ').addEventListener('input', function(e){
+    clearTimeout(qTimer);
+    qTimer = setTimeout(function(){ state.q = e.target.value; state.page=1; paint(); }, 220);
+  });
+  document.getElementById('sort').addEventListener('change', function(e){ state.sort=e.target.value; paint(); });
+  document.getElementById('clearAll').addEventListener('click', clearAll);
+  document.getElementById('chips').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-g]'); if (!b) return;
+    var g = b.dataset.g;
+    if (g==='q') state.q=''; else {
+      var i = state[g].indexOf(b.dataset.v); if (i>-1) state[g].splice(i,1);
+    }
+    state.page=1; paint();
+  });
+  document.getElementById('pager').addEventListener('click', function(e){
+    var a = e.target.closest('a[data-p]'); if (!a) return;
+    e.preventDefault();
+    state.page = parseInt(a.dataset.p,10);
+    paint();
+    window.scrollTo({ top: document.querySelector('.shop-layout').offsetTop - 90, behavior:'smooth' });
+  });
+
+  paint();
+})();
+</script>
+</body>
+</html>

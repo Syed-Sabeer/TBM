@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Purchase reports — TBM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect width='40' height='40' rx='10' fill='%231C3D2E'/><path d='M12 15h16l1 13.5a1.2 1.2 0 0 1-1.2 1.3H12.2a1.2 1.2 0 0 1-1.2-1.3Z' fill='%23F7F4ED'/><path d='M16 15.5c0-4 8-4 8 0' stroke='%23B9793C' stroke-width='2.1' fill='none' stroke-linecap='round'/></svg>">
+<script src="assets/js/bags.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/account.js"></script>
+</head>
+<body>
+
+<div id="site-header"></div>
+<script>TBM.renderHeader('account')</script>
+
+<div class="container">
+  <div class="dash">
+    <aside id="dash-nav"></aside>
+
+    <main>
+      <div class="dash-head">
+        <div>
+          <h1>Purchase reports</h1>
+          <p>Pull your own buying history apart by item, colour, month, buyer or warehouse. Everything on this page covers the whole company, not just your login.</p>
+        </div>
+        <button class="btn btn-outline" id="exportBtn">Export current view</button>
+      </div>
+
+      <div class="filterbar">
+        <div class="field"><label class="label" for="fRange">Period</label>
+          <select class="select" id="fRange">
+            <option value="12">Last 12 months</option>
+            <option value="3">Last 90 days</option>
+            <option value="6">Last 6 months</option>
+            <option value="0">All time</option>
+          </select>
+        </div>
+        <div class="field"><label class="label" for="fUser">Buyer</label><select class="select" id="fUser"></select></div>
+        <div class="field"><label class="label" for="fWh">Warehouse</label><select class="select" id="fWh"></select></div>
+        <div class="field"><label class="label" for="fCat">Category</label><select class="select" id="fCat"></select></div>
+        <div class="field"><label class="label" for="fMetric">Rank by</label>
+          <select class="select" id="fMetric"><option value="pieces">Pieces</option><option value="spend">Spend</option></select>
+        </div>
+      </div>
+
+      <div class="stat-grid" id="kpis" style="margin-bottom:22px"></div>
+
+      <div class="seg" id="dimSeg" style="margin-bottom:18px">
+        <button class="is-active" data-d="month">By month</button>
+        <button data-d="item">By item</button>
+        <button data-d="color">By colour</button>
+        <button data-d="cat">By category</button>
+        <button data-d="user">By buyer</button>
+        <button data-d="wh">By warehouse</button>
+        <button data-d="decor">By decoration</button>
+      </div>
+
+      <div class="chart-card">
+        <div class="panel-head">
+          <div><h3 id="vizTitle"></h3><div class="small muted" id="vizSub" style="margin-top:3px"></div></div>
+        </div>
+        <div class="chart-body"><div id="viz"></div></div>
+      </div>
+
+      <div class="panel" style="margin-top:22px">
+        <div class="panel-head"><h3 id="tableTitle"></h3><span class="small muted">Table view — every value in the chart above</span></div>
+        <div class="table-wrap"><table class="table table-compact" id="reportTable"></table></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div id="site-footer"></div>
+<script>TBM.renderFooter()</script>
+
+<script>
+(function(){
+  if (!TBMAcct.guard()) return;
+  var I = TBM.I, D = TBMData, A = TBMAcct, B = TBMBags;
+  document.querySelectorAll('[data-ico]').forEach(function(el){ el.innerHTML = I[el.dataset.ico] || ''; });
+  A.renderNav('account-reports.html');
+
+  var dim = 'month';
+
+  document.getElementById('fUser').innerHTML = '<option value="">All buyers</option>' +
+    A.USERS.map(function(u){ return '<option>'+u.name+'</option>'; }).join('');
+  document.getElementById('fWh').innerHTML = '<option value="">All warehouses</option>' +
+    D.WAREHOUSES.map(function(w){ return '<option value="'+w.code+'">'+w.name+'</option>'; }).join('');
+  document.getElementById('fCat').innerHTML = '<option value="">All categories</option>' +
+    D.CATEGORIES.map(function(c){ return '<option value="'+c.slug+'">'+c.name+'</option>'; }).join('');
+
+  function cutoff(m){
+    if (!m) return null;
+    var t = A.TODAY;
+    return new Date(t.getFullYear(), t.getMonth()-m, t.getDate());
+  }
+
+  /* Category filter prunes lines, not whole orders, so an item-level
+     filter still reports honest line totals. */
+  function scope(){
+    var u = document.getElementById('fUser').value;
+    var wh = document.getElementById('fWh').value;
+    var cat = document.getElementById('fCat').value;
+    var from = cutoff(parseInt(document.getElementById('fRange').value,10));
+
+    return A.ORDERS.filter(function(o){
+      if (o.status==='Cancelled') return false;
+      if (from && o.date < from) return false;
+      if (u && o.user !== u) return false;
+      if (wh && o.warehouse !== wh) return false;
+      return true;
+    }).map(function(o){
+      if (!cat) return o;
+      var lines = o.lines.filter(function(l){ return l.cat===cat; });
+      return lines.length ? Object.assign({}, o, { lines: lines }) : null;
+    }).filter(Boolean);
+  }
+
+  var TITLES = {
+    month: ['Purchases by month', 'Every order in the period, bucketed by the month it was placed.'],
+    item:  ['Purchases by item number', 'Ranked across every item number you have bought.'],
+    color: ['Purchases by colour', 'Which body colours your programmes actually run on.'],
+    cat:   ['Purchases by category', 'Where the volume sits across the catalog families.'],
+    user:  ['Purchases by buyer', 'Who on your team is placing the volume.'],
+    wh:    ['Purchases by warehouse', 'Which stocking location your goods ship from.'],
+    decor: ['Purchases by decoration', 'Blank versus decorated across the period.']
+  };
+
+  var current = { rows: [], head: [] };
+
+  function paint(){
+    var list = scope();
+    var metric = document.getElementById('fMetric').value;
+    var pieces = list.reduce(function(s,o){ return s+A.orderPieces(o); },0);
+    var spend  = list.reduce(function(s,o){ return s+A.orderTotal(o); },0);
+    var items  = A.byItem(list).length;
+
+    document.getElementById('kpis').innerHTML =
+      '<div class="stat"><div class="lab">Orders in view</div><div class="val">'+list.length+'</div><div class="sub">across '+A.byUser(list).length+' buyers</div></div>'+
+      '<div class="stat"><div class="lab">Pieces</div><div class="val">'+TBM.num(pieces)+'</div><div class="sub">'+items+' distinct item numbers</div></div>'+
+      '<div class="stat"><div class="lab">Merchandise spend</div><div class="val">'+TBM.usd(spend)+'</div><div class="sub">at your current rate card</div></div>'+
+      '<div class="stat"><div class="lab">Blended unit price</div><div class="val">'+TBM.usd(pieces?spend/pieces:0)+'</div><div class="sub">all items, all breaks</div></div>';
+
+    document.getElementById('vizTitle').textContent = TITLES[dim][0];
+    document.getElementById('vizSub').textContent = TITLES[dim][1];
+    document.getElementById('tableTitle').textContent = TITLES[dim][0];
+
+    var viz = document.getElementById('viz');
+
+    if (dim === 'month'){
+      var months = A.byMonth(list, parseInt(document.getElementById('fRange').value,10) || 14);
+      A.columnChart(viz, months.map(function(m){
+        return { label:m.label, full:m.full, value:m[metric==='spend'?'spend':'pieces'],
+          tip: TBM.usd(m.spend)+'<br><span class="k">'+TBM.num(m.pieces)+' pcs · '+m.orders+' orders</span>' };
+      }), { prefix: metric==='spend' ? '$' : '', alt:'Purchases by month' });
+
+      current.head = ['Month','Orders','Pieces','Spend','Avg unit'];
+      current.rows = months.map(function(m){
+        return [m.full, m.orders, m.pieces, m.spend.toFixed(2), (m.pieces?m.spend/m.pieces:0).toFixed(3)];
+      });
+      document.getElementById('reportTable').innerHTML =
+        '<thead><tr><th>Month</th><th class="num">Orders</th><th class="num">Pieces</th><th class="num">Spend</th><th class="num">Avg unit</th></tr></thead><tbody>'+
+        months.map(function(m){
+          return '<tr><td>'+m.full+'</td><td class="num">'+m.orders+'</td><td class="num">'+TBM.num(m.pieces)+'</td>'+
+            '<td class="num"><b>'+TBM.usd(m.spend)+'</b></td><td class="num">'+(m.pieces?TBM.usd(m.spend/m.pieces):'—')+'</td></tr>';
+        }).join('')+'</tbody>';
+      return;
+    }
+
+    var rows = dim==='item'  ? A.byItem(list)
+             : dim==='color' ? A.byColor(list)
+             : dim==='cat'   ? A.byCat(list)
+             : dim==='user'  ? A.byUser(list)
+             : dim==='decor' ? A.byDecor(list)
+             :                 A.byWarehouse(list);
+
+    rows = rows.slice().sort(function(a,b){ return b[metric]-a[metric]; });
+    var shown = rows.slice(0, 12);
+
+    viz.classList.add('viz');
+    viz.innerHTML = A.barList(shown.map(function(x){
+      return {
+        label: x.label,
+        mono: dim==='item' ? x.key : '',
+        swatch: dim==='color' ? B.color(x.key).body : '',
+        value: x[metric],
+        display: metric==='spend' ? TBM.usd(x.spend) : TBM.num(x.pieces)+' pcs',
+        sub: metric==='spend' ? TBM.num(x.pieces)+' pcs' : TBM.usd(x.spend)
+      };
+    }));
+
+    current.head = ['Name','Key','Orders','Pieces','Spend','Share of pieces'];
+    var totalPieces = rows.reduce(function(s,x){ return s+x.pieces; },0) || 1;
+    current.rows = rows.map(function(x){
+      return [x.label, x.key, x.orderCount, x.pieces, x.spend.toFixed(2), (x.pieces/totalPieces*100).toFixed(1)+'%'];
+    });
+
+    document.getElementById('reportTable').innerHTML =
+      '<thead><tr><th>'+(dim==='item'?'Item':dim==='color'?'Colour':dim==='user'?'Buyer':dim==='wh'?'Warehouse':dim==='decor'?'Decoration':'Category')+'</th>'+
+      '<th class="num">Orders</th><th class="num">Pieces</th><th class="num">Spend</th><th class="num">Avg unit</th><th class="num">Share</th></tr></thead><tbody>'+
+      rows.map(function(x){
+        return '<tr><td>'+
+          (dim==='color' ? '<span class="row" style="gap:9px"><span class="swatch" style="width:18px;height:18px;background:'+B.color(x.key).body+'"></span>'+x.label+'</span>'
+           : dim==='item' ? '<a class="mono" style="color:var(--forest);font-weight:600" href="product.html?sku='+x.key+'">'+x.key+'</a> '+x.label
+           : x.label)+'</td>'+
+          '<td class="num">'+x.orderCount+'</td>'+
+          '<td class="num">'+TBM.num(x.pieces)+'</td>'+
+          '<td class="num"><b>'+TBM.usd(x.spend)+'</b></td>'+
+          '<td class="num">'+TBM.usd(x.spend/x.pieces)+'</td>'+
+          '<td class="num">'+(x.pieces/totalPieces*100).toFixed(1)+'%</td></tr>';
+      }).join('')+'</tbody>';
+  }
+
+  document.getElementById('dimSeg').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-d]'); if(!b) return;
+    dim = b.dataset.d;
+    this.querySelectorAll('button').forEach(function(x){ x.classList.toggle('is-active', x===b); });
+    paint();
+  });
+  ['fRange','fUser','fWh','fCat','fMetric'].forEach(function(id){
+    document.getElementById(id).addEventListener('change', paint);
+  });
+  document.getElementById('exportBtn').addEventListener('click', function(){
+    A.download('tbm-report-'+dim+'.csv', A.csv([current.head].concat(current.rows)));
+    TBM.toast('Report exported');
+  });
+
+  paint();
+})();
+</script>
+</body>
+</html>

@@ -1,183 +1,214 @@
-# TBM — Tote Bag Market (storefront + customer dashboard)
+# TBM — Tote Bag Market
 
-Static front-end for a wholesale-only bag supplier. No build step — open `index.html`
-or serve the folder from Laragon at `http://tbm.test/`.
+A wholesale (B2B) bag supply platform: public catalogue, per-account pricing behind a login,
+ordering on account terms with no payment merchant, and a back office for orders, accounts,
+stock and the morning mill sheet.
 
-## Demo logins
+Laravel 10 · PHP 8.1+ · Spatie laravel-permission v6 · Blade · no build step.
 
-**Storefront / customer dashboard**
+---
+
+## Getting it running
+
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+```
+
+Point `.env` at a database, then:
+
+```bash
+php artisan migrate --seed
+php artisan storage:link
+```
+
+On Laragon, drop the folder in `www/` and browse to `http://tbm.test` (or whatever the
+virtual host is called). The document root must be **`public/`**, not the project root.
+
+### Demo logins
+
+Seeded by `AccountSeeder`. Both use the password `adminadmin` — **change this before the
+application touches a real server.**
 
 | | |
 |---|---|
-| URL | `/` |
-| Email | `customer@gmail.com` |
-| Password | `adminadmin` |
+| Back office | `admin@gmail.com` → `/admin` |
+| Customer | `customer@gmail.com` → `/account` |
 
-**Admin / back office**
+The seeded book also contains two accounts still awaiting approval and one on hold, so the
+pricing gate and the approval flow can be seen working end to end.
+
+---
+
+## The five rules this is built around
+
+Everything else is plumbing. These are the decisions the code exists to enforce.
+
+### 1. No price is visible until an account is approved
+
+One gate, asked in one place. `User::canSeePricing()` is the check; the `<x-price>` Blade
+component is the only thing in the application that renders a figure on the storefront; the
+`see-pricing` Gate covers everything else. No view formats money by hand, so there is no page
+where a price can leak because somebody forgot a condition.
+
+A signed-out visitor sees the catalogue, the specifications and the live warehouse
+quantities — just never a number. That is deliberate: stock is the first thing a wholesale
+buyer asks, and hiding it costs enquiries.
+
+### 2. Different accounts pay different prices for the same item
+
+```
+unit price = base price
+           × quantity-break factor
+           × the account's tier factor
+           × any factor negotiated on that item for that account
+```
+
+`PricingService` is the only class in the codebase that multiplies money. Tiers live in
+`price_tiers`; per-item concessions live in `price_overrides` and are stored as a **multiplier,
+not a fixed price**, so a later change to the underlying card still flows through and the
+concession stays a concession.
+
+Quantity breaks are config, not code — `config/tbm.php`.
+
+### 3. The mill reference never reaches a customer
+
+Two identifiers on every item, deliberately unrelated:
 
 | | |
 |---|---|
-| URL | `/admin/login` |
-| Email | `admin@gmail.com` |
-| Password | `adminadmin` |
+| `parent_sku` | The mill's own code (`BPK18`). Purchase orders and pick lists only. |
+| `sku` | The customer-facing item number (`DS4500`). Site, packing slip, invoice. |
 
-The admin URL is a folder (`admin/login/index.html`), so it needs to be served by
-Laragon — open `http://tbm.test/admin/login`, not the file directly.
+Re-source an item from a different mill and only `parent_sku` moves — every historical
+document still reprints correctly, because order lines freeze both.
 
-Signs you in as **Alex Morgan**, Purchasing Manager at **Northline Supply Co.**,
-on the **Tier B — Preferred** rate card, and lands on the dashboard. The login page
-also has A / B / C buttons that sign the same account in on a different contract rate,
-so you can watch the entire catalog and dashboard reprice.
+`parent_sku` is in `$hidden` on the model, the customer search cannot match on it, and
+`SkuSeparationTest` checks every customer-facing surface including the invoice and the
+packing slip. The pick list is the one document that leads with it, and it is staff-only.
 
-## Storefront pages
+### 4. An order belongs to the company, not to the person
 
-| File | What it is |
-|---|---|
-| `index.html` | Home — hero, categories, "price after login" explainer, bestsellers, live stock feed, item-number mapping, decoration, sustainability, warehouses, story |
-| `shop.html` | Catalog listing with working filters (category, material, colour, programme, warehouse, MOQ), sort, chips, pagination. Reads/writes `?cat=`, `?flag=`, `?stock=`, `?q=` |
-| `product.html` | Item detail — `?sku=DS4545`. Gallery with colourway switching, size + decoration pickers, quantity breaks, price gate, warehouse stock, 5 tabs, related items |
-| `cart.html` | Order builder — line editing, PO number, notes, summary |
-| `checkout.html` | Contact → ship-to → fulfilment → terms → submit. **No payment merchant.** Ends in an order acknowledgement |
-| `login.html` | Sign in with the credentials above. Wrong password is rejected. Rate-card preview buttons below the form |
-| `register.html` | Wholesale application — company, tax/terms, address, primary contact, additional logins |
-| `customization.html` | Decoration — four methods compared, the four-step process, imprint areas by body, artwork specs and templates, lead times, samples, FAQ, quote/proof form |
-| `story.html` | Our story — origin, by-the-numbers, 13-year timeline, how we work, the team, facilities, careers |
-| `sustainability.html` | Certifications with exact scope, every material and the claim you can make about it, supply chain and audits, packaging roadmap, a "what we do not claim" section, document library |
-| `contact.html` | Four department cards, routed contact form, opening hours, the three locations with dock hours, FAQ |
+One company, many logins, one shared order history. Any contact with the Buyer or Admin role
+can place an order; everybody on the account sees all of them. `OrderPolicy` scopes on
+`company_id`, never on `placed_by_id`.
 
-## Customer dashboard (after login)
+Roles inside an account (`customer-admin`, `customer-buyer`, `customer-viewer`) decide what a
+person may **do**. They never affect what the company is **charged** — price comes from the
+account.
 
-| File | What it is |
-|---|---|
-| `account.html` | Overview — spend hero figure, KPI tiles with sparklines, spend-by-month chart (spend / pieces / orders), recent orders, top items, open orders, one-click reorder of what they buy most |
-| `account-orders.html` | Shared order history — every order by every login on the account. Filters by period, status, buyer, warehouse, free text. CSV export |
-| `account-order.html` | One order — `?id=TBM-2026-4085`. Status timeline, lines with customer item numbers, documents, ship-to, billing, reorder |
-| `account-reports.html` | **Item-wise / colour-wise / month-wise** reporting, plus by category, buyer, warehouse and decoration. Chart + full table + CSV export, filtered by period / buyer / warehouse / category |
-| `account-pricing.html` | The account's own rate card across the whole catalog, price at every quantity break, searchable, CSV download |
-| `account-users.html` | Company logins, permissions (Admin / Buyer / View only), who is buying, invite a user |
-| `account-addresses.html` | Ship-to addresses, stocking warehouses, default fulfilment, request your own stocking location |
-| `account-settings.html` | Company profile, resale certificate, terms & credit, notifications, security |
+### 5. Money and addresses are frozen when an order is placed
 
-Every dashboard page redirects to `login.html?next=…` when signed out.
+An order captures its own totals and a JSON snapshot of the ship-to address. Change a rate
+card, rename a product or edit an address afterwards and no historical invoice moves.
 
-## Admin / back office
+---
 
-Served from `/admin/<page>/`, its own shell — no storefront header or footer, and no
-link to it from the public site. Signed out, every page redirects to `/admin/login`.
+## The morning sheet
 
-| URL | What it is |
-|---|---|
-| `/admin/login` | Staff sign-in. Rejects a wrong password |
-| `/admin/dashboard` | Revenue hero + KPIs, revenue-by-month chart, the confirmation queue, low-cover stock, this morning's import status, activity feed, top accounts and items |
-| `/admin/orders` | Every order from every account. Filters, bulk status changes, CSV export with both SKUs |
-| `/admin/order` | One order — `?id=`. Lines with parent SKU *and* item number, margin per line, allocation across warehouses, internal notes, invoice, credit warning |
-| `/admin/customers` | All accounts, with a pending-approval queue that assigns a rep and a tier on approval |
-| `/admin/customer` | One account — `?id=`. Overview, **rate card** (tier + editable per-item overrides + live price preview + margin check), logins, orders, settings |
-| `/admin/products` | Parent SKU ↔ customer item number mapping, unmapped mill references held back, cost and sold-volume per item |
-| `/admin/product` | One item — `?sku=`. Identity (both SKUs), colourways, stock by warehouse, price by tier, who buys it |
-| `/admin/pricing` | **Who pays what** — one item, every account, the price each one sees. Plus tiers, quantity breaks, all overrides and margin policy |
-| `/admin/inventory` | Stock by item and warehouse with inline correction, reasons, weeks of cover, reorder |
-| `/admin/warehouses` | Locations, allocation rules, and a working **create a warehouse** form (including customer consignment) |
-| `/admin/import` | **The daily supplier sheet.** Four-step wizard: source → column mapping → preview → apply. Plus scheduled feeds and rollback history |
-| `/admin/reports` | Eight dimensions across the whole book: month, item, colour, category, account, rep, warehouse, decoration — with margin |
-| `/admin/settings` | Staff and roles, document numbering (with the parent-SKU-on-documents switch), storefront rules, integrations, audit log |
+The mill sends a daily CSV of quantity and cost, keyed on its own reference. `StockImportService`
+runs it in three deliberate steps:
 
-### The import wizard
+1. **Stage** — parse the file, nothing written.
+2. **Preview** — resolve every line against the catalogue and show what will change,
+   including the lines that matched nothing. Still nothing written.
+3. **Apply** — write the stock figures. This is the step that carries the `imports.apply`
+   permission, and each figure leaves a `StockMovement` recording what it replaced, which is
+   what makes a run reversible.
 
-`/admin/import` is the piece that matches the daily spreadsheet in the brief. It reads a
-mill sheet whose columns are the mill's own names (`MILL_REF`, `LOT_QTY`, `WH`, `FOB_USD`),
-maps them to TBM fields, resolves each parent SKU to a customer item number, and shows a
-row-by-row preview of what will change — increases in green, decreases in red, and rows it
-cannot match flagged rather than guessed. Unmatched rows can be mapped inline. Applying it
-writes the new quantities into the live catalog, so the storefront reflects them immediately.
+A wrong column map is therefore a wasted minute, not a wrong storefront.
 
-Costs from that sheet are stored for margin reporting and never become a customer price.
-Selling prices live only in the rate cards, which a stock import never touches.
+`php artisan tbm:import-inbox` picks up anything waiting in `storage/app/imports/inbox`,
+stages and previews it, and stops. Applying stays a human decision, because a mill occasionally
+sends a truncated file and an unattended apply would publish an empty warehouse.
 
-## Assets
+---
+
+## Layout
 
 ```
-assets/css/style.css   design tokens + all components + dashboard + charts
-assets/js/bags.js      SVG bag illustration engine (10 shapes × 18 colourways)
-assets/js/data.js      catalog, categories, warehouses, price tiers
-assets/js/app.js       header/footer shell, auth gate, cart, shared renderers
-assets/js/account.js   company data, 26 months of order history, aggregations, charts
-assets/css/admin.css   back-office shell (sidebar, dense tables, wizard, toggles)
-assets/js/admin-data.js 11 customer accounts, ~230 orders, overrides, import sheet
-assets/js/admin.js     admin shell, auth guard, chart helpers
+app/
+  Enums/              AccountStatus, OrderStatus, ImportStatus, roles — each with label()
+  Models/             17 Eloquent models
+  Policies/           Order, Company, Product, Address, StockImport, User
+  Services/
+    Pricing/          PricingService — the only place a price is calculated
+    Cart/             Session basket; stores selections only, never money
+    Inventory/        Every stock write, each leaving a movement
+    Orders/           Basket → order, and the status transitions
+    Imports/          Stage / preview / apply for the mill sheet
+    Reporting/        By month, item, colour, category, user, warehouse
+    Rendering/        BagRenderer — SVG product illustrations, drawn in code
+  Support/            Money and Icons helpers
+database/
+  data/               catalogue.php and accounts.php — seed data as plain arrays
+  seeders/            Roles, tiers, catalogue, accounts, 26 months of orders
+resources/views/
+  layouts/            storefront · account · admin · auth
+  components/         price, product-card, column-chart, bar-list, stat, icon …
+  documents/          invoice · packing slip (pick list lives under admin/)
 ```
 
-The four content pages above replace the old `index.html#customization` style anchors — the homepage sections stay as teasers and link through.
+### Illustrations
 
-Charts are hand-built inline SVG — no library, no CDN. Single-series magnitude work in
-one validated green (`#0E7A4A`), hairline gridlines, 24px bars with a 4px cap, one
-direct label on the peak, hover tooltip on every mark, and a table view under every
-chart so nothing is locked behind colour.
+There is no photography yet, and a catalogue needs a picture of every item in every colour.
+`BagRenderer` draws them: ten shapes, any colourway from the database, as inline SVG. Adding a
+colour in the back office puts it on the storefront. When real photography arrives, replace the
+call sites with `<img>` — nothing else depends on it.
 
-## The concepts already wired in
+---
 
-**Price only after login.** `TBM.priceHTML()` in `app.js` is the single place the
-storefront decides whether a number may be rendered. Logged out, every price on
-every page becomes a "Log in for pricing" link. There is no price in the HTML at all.
+## Permissions
 
-**Different rates for different customers.** `data.js` holds a `base` price per item;
-the shown price is `base × quantityBreakFactor × tierFactor`, where `tierFactor` comes
-from the signed-in account. Tiers A / B / C are defined in `TBMData.TIERS`. Sign in as
-any demo account and switch tier from the account menu to see the whole site reprice.
+Two families in one table, kept apart by naming.
 
-**Parent SKU hidden, customer item number shown.** Each product carries both
-`parentSku` (e.g. `BPK18`, mill-side, used for POs) and `sku` (e.g. `DS4500`, what the
-buyer sees). Only `sku` is rendered — listing, PDP, cart, checkout, packing-slip copy.
-The home page has a live demo of the mapping.
+**Staff roles** are job titles: `owner`, `account-manager`, `inventory`, `customer-care`. The
+permissions behind each are defined once in `RoleSeeder::STAFF_MATRIX`, not ticked per person.
+`owner` is granted everything through a `Gate::before`, so a permission added later never has to
+be remembered.
 
-**One company, many logins, shared history.** Copy and UI assume this throughout
-(checkout contact block, register "additional logins" section, account menu).
+**Customer roles** carry no back-office permissions at all. What a customer may do is decided by
+the policies, against their own company — so granting a staff permission can never widen what a
+customer can reach.
 
-**Warehouses.** `TBMData.WAREHOUSES` drives the stock tables, the shop filter and the
-checkout "ship from" picker, including a "split across warehouses" option.
+---
 
-**Daily stock feed.** The home page inventory panel and the PDP warehouse table both
-read `product.stock` — the shape your supplier sheet import would populate.
+## Tests
 
-**Checkout without a merchant.** No card fields anywhere. The final step is
-"Submit order for confirmation" with payment terms (Net 30 / wire / prepay) chosen,
-and the confirmation explicitly states nothing was charged.
+```bash
+php artisan test
+```
 
-## Prototype state
+Four suites, covering the rules above rather than the framework:
 
-Auth and cart are held in `localStorage` (`tbm.account`, `tbm.cart`) purely so the
-gate is demonstrable. Replace with sessions + a `carts` table when this becomes PHP.
-
-Order history is generated deterministically from a seed — 26 months in `account.js` for
-the one customer account, and ~230 orders across eleven accounts in `admin-data.js` — so
-the numbers are stable across reloads and pages. `DEMAND_SCALE` in `admin-data.js` grosses
-the modelled accounts up to a full customer base so weeks-of-cover reads sensibly; replace
-it with real shipped quantities. Historical
-lines are priced at the account's *current* rate card so switching tier re-prices the
-whole dashboard and the effect is visible; a production build stores the unit price
-agreed at the time the order was placed.
-
-Bag images are generated SVG, not photography — drop real product shots in by
-replacing the `TBMBags.figure()` calls with `<img>` tags; every call site already
-passes the product and colour.
-
-## Converting to PHP
-
-`TBM.renderHeader()` / `TBM.renderFooter()` inject the shell from `app.js` so there is
-exactly one copy of it. Those two calls are the natural seam for
-`include 'partials/header.php'`.
-
-## Demo logins
-
-| Rate card | Effect |
+| | |
 |---|---|
-| Tier A — Distributor | −14% off the standard card |
-| Tier B — Preferred | −6% (the demo account's card) |
-| Tier C — Standard | list rate |
+| `PricingGateTest` | No price for a signed-out visitor, a pending account, a held account or a lapsed certificate — checked in rendered HTML, because that is where a leak would happen. |
+| `PricingServiceTest` | The formula, with every figure worked out by hand in the assertion. |
+| `SkuSeparationTest` | The mill reference on every customer surface, including invoice and packing slip. |
+| `SharedOrderHistoryTest` | Colleagues see each other's orders; another company sees nothing. |
+| `AuthenticationTest` | Both doors, deactivated logins, and registration landing on a pending account that still cannot see a price. |
 
-The account menu in the header also has a tier switcher, so you can flip between them
-without signing out.
+---
 
-## Credit
+## Before this goes live
 
-Footer carries "Powered by [Deveon Inc](https://deveoninc.com/)" on every page.
+- [ ] **Change the seeded passwords.** `AccountSeeder::DEMO_PASSWORD` is `adminadmin`.
+- [ ] **Replace the content-page copy.** Every factual claim on `/our-story` and
+      `/sustainability` — certifications, audit scope, square footage, founding dates — is
+      placeholder text and is marked as such in the Blade comments. An unsubstantiated GOTS or
+      GRS claim is a legal problem, not a marketing one; have whoever holds the certificates
+      check that page.
+- [ ] Replace the company details in `config/tbm.php` (address, phone, email addresses).
+- [ ] Set `APP_ENV=production` and `APP_DEBUG=false`.
+- [ ] Wire a mailer — the contact form currently logs the enquiry to the activity log and
+      acknowledges it, rather than pretending to send mail it cannot send.
+- [ ] Decide whether `TBM_DEMAND_SCALE` (default 12) should be 1. It grosses the seeded sample
+      up to a realistic customer base so weeks-of-cover reads true; with real order volume it
+      should be 1.
+- [ ] Review the margin floor (`TBM_MARGIN_FLOOR`, default 28%).
+
+---
+
+Powered by [Deveon Inc](https://deveoninc.com/).
