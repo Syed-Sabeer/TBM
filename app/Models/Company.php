@@ -54,6 +54,7 @@ class Company extends Model
             'credit_limit' => 'decimal:2',
             'credit_used' => 'decimal:2',
             'certificate_expires_at' => 'date',
+            'customer_since' => 'date',
         ];
     }
 

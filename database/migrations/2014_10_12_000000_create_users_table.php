@@ -10,7 +10,19 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id')->nullable()->constrained()->nullOnDelete();
+
+            /*
+             | company_id is declared without its constraint here, because
+             | users and companies point at each other: a customer login
+             | belongs to a company, and a company names one of the staff
+             | logins as its account manager. One of the two has to be created
+             | first, so the foreign key is closed once both tables exist —
+             | see 2020_01_01_001400_add_company_foreign_keys.
+             |
+             | NULL means staff. A customer always belongs to exactly one
+             | company.
+             */
+            $table->foreignId('company_id')->nullable();
             $table->string('name');
             $table->string('email')->unique();
             $table->string('job_title')->nullable();

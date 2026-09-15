@@ -38,7 +38,7 @@ return new class extends Migration
             $table->string('billing_country', 64)->default('United States');
 
             $table->foreignId('default_warehouse_id')->nullable();
-            $table->year('customer_since')->nullable();
+            $table->date('customer_since')->nullable();   // rendered as "January 2021"
             $table->text('notes')->nullable();
             $table->timestamps();
 

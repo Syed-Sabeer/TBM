@@ -50,7 +50,13 @@ return new class extends Migration
             $table->index(['category_id', 'is_published']);
         });
 
-        Schema::create('product_colourway', function (Blueprint $table) {
+        /*
+         | Laravel builds a pivot table name by sorting the two model names
+         | alphabetically, so colourway comes before product. Naming it the
+         | other way round leaves both belongsToMany relations looking for a
+         | table that does not exist.
+         */
+        Schema::create('colourway_product', function (Blueprint $table) {
             $table->id();
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
             $table->foreignId('colourway_id')->constrained()->cascadeOnDelete();
@@ -63,7 +69,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('product_colourway');
+        Schema::dropIfExists('colourway_product');
         Schema::dropIfExists('products');
     }
 };
